@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>WordPop – learn English words with reminders</title>
+  <meta name="description" content="Save new English words and get gentle reminders on your phone until you know them." />
+  <meta name="theme-color" content="#4F46E5" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="WordPop" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand"><img src="/icons/icon-192.png" alt="" width="28" height="28" /> WordPop</span>
+    <span id="topbar-extra"></span>
+  </header>
+
+  <main id="view" aria-live="polite">
+    <p class="muted center pad">Loading…</p>
+  </main>
+
+  <nav class="tabbar" id="tabbar" hidden>
+    <a href="#/words" data-tab="words"><span class="ico">📚</span>Words</a>
+    <a href="#/categories" data-tab="categories"><span class="ico">🏷️</span>Categories</a>
+    <a href="#/quiz" data-tab="quiz"><span class="ico">🧠</span>Quiz</a>
+    <a href="#/progress" data-tab="progress"><span class="ico">📈</span>Progress</a>
+    <a href="#/settings" data-tab="settings"><span class="ico">⚙️</span>Settings</a>
+  </nav>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

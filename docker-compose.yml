@@ -1,0 +1,38 @@
+# Local development: PostgreSQL + the app.
+#   docker compose up --build      -> http://localhost:8000
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: wordpop
+      POSTGRES_PASSWORD: wordpop
+      POSTGRES_DB: wordpop
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wordpop"]
+      interval: 3s
+      retries: 10
+
+  app:
+    build: .
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://wordpop:wordpop@db:5432/wordpop
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+
+  # Sends due notifications every 15 minutes (same job GitHub Actions runs in production)
+  scheduler:
+    build: .
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql://wordpop:wordpop@db:5432/wordpop
+    command: python -m app.scheduler --loop --interval 15
+    depends_on:
+      db: { condition: service_healthy }
+    profiles: [push]
+
+volumes:
+  pgdata:

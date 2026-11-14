@@ -1,0 +1,44 @@
+"""FastAPI application: JSON API under /api, the PWA served from /."""
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from . import __version__
+from .config import get_settings
+from .db import init_db
+from .routers import admin, auth, categories, me, push, quiz, starter, words
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="WordPop API", version=__version__, lifespan=lifespan)
+
+for r in (auth, words, categories, me, quiz, push, starter, admin):
+    app.include_router(r.router)
+
+
+@app.get("/api/health", tags=["meta"])
+def health():
+    return {"status": "ok", "version": __version__}
+
+
+frontend = get_settings().frontend_dir
+if frontend.exists():
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker():
+        # Served from the root so it can control the whole app, and never cached.
+        return FileResponse(
+            frontend / "sw.js",
+            media_type="application/javascript",
+            headers={"Cache-Control": "no-cache"},
+        )
+
+    app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")

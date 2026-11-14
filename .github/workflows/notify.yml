@@ -1,0 +1,35 @@
+name: Send notifications
+
+# Runs the scheduler every 15 minutes. Each user's own settings (frequency,
+# hours, days, time zone, pause, daily limit) decide who actually gets a word.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: # allows a manual run from the Actions tab
+
+concurrency:
+  group: notify
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Send due notifications
+        run: python -m app.scheduler
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}

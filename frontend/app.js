@@ -1,0 +1,594 @@
+// WordPop PWA – plain JavaScript, no build step.
+
+const $view = document.getElementById("view");
+const $tabbar = document.getElementById("tabbar");
+const $toast = document.getElementById("toast");
+
+const state = { user: null, categories: [], installDismissed: sessionStorageGet("installDismissed") };
+
+// ---------- helpers ----------
+function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
+function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } }
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function api(path, { method = "GET", body } = {}) {
+  const res = await fetch(path, {
+    method,
+    credentials: "same-origin",
+    headers: body ? { "Content-Type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (res.status === 401 && !path.startsWith("/api/auth/")) { state.user = null; location.hash = "#/login"; }
+    let msg = data.detail;
+    if (Array.isArray(msg)) msg = msg.map((d) => d.msg.replace(/^Value error, /, "")).join(", ");
+    throw new Error(msg || `Something went wrong (${res.status})`);
+  }
+  return data;
+}
+
+let toastTimer;
+function toast(msg) {
+  $toast.textContent = msg; $toast.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => ($toast.hidden = true), 2800);
+}
+
+function route() {
+  const [path, query = ""] = location.hash.replace(/^#/, "").split("?");
+  return { path: path || "/words", params: new URLSearchParams(query) };
+}
+
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOSNonSafari = () => isIOS() && /CriOS|FxiOS|EdgiOS|OPiOS/.test(navigator.userAgent);
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+function catChips(selected = [], name = "cat") {
+  if (!state.categories.length) return `<p class="muted small">No categories yet – <a href="#/categories">create one</a>.</p>`;
+  return `<div class="chips">${state.categories.map((c) =>
+    `<button type="button" class="chip" data-${name}="${c.id}" aria-pressed="${selected.includes(c.id)}">
+      <span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</button>`).join("")}</div>`;
+}
+function bindToggleChips(root, attr) {
+  root.querySelectorAll(`[data-${attr}]`).forEach((b) =>
+    b.addEventListener("click", () => b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true")));
+}
+const pressedIds = (root, attr) => [...root.querySelectorAll(`[data-${attr}][aria-pressed="true"]`)].map((b) => Number(b.dataset[attr]));
+
+async function loadCategories() { state.categories = await api("/api/categories"); }
+
+// ---------- install guide (iPhone) ----------
+function installGuide() {
+  if (isIOSNonSafari()) {
+    return `<div class="card install"><h1>Open in Safari</h1>
+      <p>On iPhone, notifications only work when WordPop is opened in <b>Safari</b>.</p>
+      <p class="muted">Copy this page's link and paste it into Safari.</p>
+      <button class="secondary" id="copy-link">Copy link</button></div>`;
+  }
+  return `<div class="card install">
+    <img src="/icons/icon-192.png" width="72" height="72" alt="" style="border-radius:16px" />
+    <h1>Install WordPop on your iPhone</h1>
+    <p class="muted">It takes 20 seconds and lets WordPop send you word reminders.</p>
+    <ol>
+      <li>Tap the <b>Share</b> button <span class="share-ico">⬆</span> at the bottom of Safari.</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+      <li>Open <b>WordPop</b> from your Home Screen and sign in there.</li>
+    </ol>
+    <p class="small muted">Tip: install first, then sign in inside the installed app – the app and Safari keep separate logins.</p>
+    <button class="ghost" id="skip-install">Continue in the browser for now</button>
+  </div>`;
+}
+
+// ---------- screens ----------
+const screens = {};
+
+screens["/login"] = async () => {
+  if (isIOS() && !isStandalone() && !state.installDismissed) {
+    $view.innerHTML = installGuide();
+    document.getElementById("skip-install")?.addEventListener("click", () => {
+      state.installDismissed = "1"; sessionStorageSet("installDismissed", "1"); render();
+    });
+    document.getElementById("copy-link")?.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(location.origin); toast("Link copied");
+    });
+    return;
+  }
+  let mode = "signup";
+  const draw = () => {
+    $view.innerHTML = `
+      <div class="card stack">
+        <h1>${mode === "signup" ? "Create your account" : "Welcome back"}</h1>
+        <p class="muted">${mode === "signup" ? "Save new English words and get reminders until you know them." : "Sign in to see your words."}</p>
+        <form id="auth" class="stack">
+          <div><label for="email">Email</label><input id="email" type="email" autocomplete="email" required /></div>
+          <div><label for="pw">Password</label>
+            <input id="pw" type="password" minlength="8" required autocomplete="${mode === "signup" ? "new-password" : "current-password"}" />
+            ${mode === "signup" ? '<p class="small muted">At least 8 characters.</p>' : ""}</div>
+          <p class="error" id="err" hidden></p>
+          <button class="block" type="submit">${mode === "signup" ? "Create account" : "Sign in"}</button>
+        </form>
+        <p class="center small">${mode === "signup" ? "Already have an account?" : "New here?"}
+          <a href="#" id="switch">${mode === "signup" ? "Sign in" : "Create an account"}</a></p>
+        <p class="center small muted"><a href="/privacy.html">Privacy</a></p>
+      </div>`;
+    document.getElementById("switch").onclick = (e) => { e.preventDefault(); mode = mode === "signup" ? "login" : "signup"; draw(); };
+    document.getElementById("auth").onsubmit = async (e) => {
+      e.preventDefault();
+      const err = document.getElementById("err"); err.hidden = true;
+      const body = { email: email.value.trim(), password: pw.value };
+      if (mode === "signup") body.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      try {
+        state.user = await api(`/api/auth/${mode}`, { method: "POST", body });
+        await loadCategories();
+        location.hash = mode === "signup" ? "#/welcome" : "#/words";
+      } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+    };
+  };
+  draw();
+};
+
+screens["/welcome"] = async () => {
+  const lists = await api("/api/starter-lists");
+  $view.innerHTML = `
+    <h1>Let's get you started 👋</h1>
+    <div class="card stack">
+      <h2>Pick a starter list</h2>
+      <p class="muted small">Get useful words right away. You can remove any word later, and add your own anytime.</p>
+      ${starterListHtml(lists)}
+    </div>
+    <a class="btn block" href="#/words">Continue</a>`;
+  bindStarterButtons();
+};
+
+function starterListHtml(lists) {
+  return lists.map((l) => `
+    <div class="row between">
+      <div class="grow"><b>${esc(l.name)}</b> <span class="muted small">· ${l.count} words</span><br />
+        <span class="small muted">${esc(l.description)}</span></div>
+      <button class="secondary small" data-import="${esc(l.key)}">Add</button>
+    </div>`).join("");
+}
+function bindStarterButtons() {
+  $view.querySelectorAll("[data-import]").forEach((b) => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try {
+      const r = await api(`/api/starter-lists/${b.dataset.import}/import`, { method: "POST" });
+      b.textContent = "Added ✓"; toast(`${r.added} words added`); await loadCategories();
+    } catch (e) { b.disabled = false; toast(e.message); }
+  }));
+}
+
+screens["/words"] = async ({ params }) => {
+  await loadCategories();
+  const filter = params.get("category");
+  const words = await api(`/api/words${filter ? `?category_id=${encodeURIComponent(filter)}` : ""}`);
+  $view.innerHTML = `
+    <div class="card">
+      <h2>Add a word</h2>
+      <form id="add" class="stack">
+        <div class="row"><input id="w-text" class="grow" placeholder="e.g. resilient" required autocomplete="off" autocapitalize="none" style="width:auto" />
+          <button type="button" class="secondary" id="lookup">Look up</button></div>
+        <div><label for="w-meaning">Meaning <span class="muted small">(leave empty to fill automatically)</span></label>
+          <textarea id="w-meaning" rows="2"></textarea></div>
+        <div><label for="w-example">Example</label><input id="w-example" /></div>
+        <div><label>Categories</label>${catChips([], "newcat")}</div>
+        <p class="error" id="add-err" hidden></p>
+        <button class="block" type="submit">Save word</button>
+      </form>
+    </div>
+    <div id="notif-ask"></div>
+    <div class="card">
+      <div class="row between"><h2>Your words <span class="muted small">(${words.length})</span></h2></div>
+      <div class="chips scroll-x" style="margin-bottom:8px">
+        <a class="chip" aria-pressed="${!filter}" href="#/words">All</a>
+        ${state.categories.map((c) => `<a class="chip" aria-pressed="${String(c.id) === filter}" href="#/words?category=${c.id}">
+          <span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</a>`).join("")}
+      </div>
+      <input id="search" placeholder="Search…" type="search" style="margin-bottom:8px" />
+      <div id="list">${words.length ? words.map(wordItem).join("") : `<p class="muted center">No words yet. Add your first one above, or pick a <a href="#/settings">starter list</a>.</p>`}</div>
+    </div>`;
+
+  bindToggleChips($view, "newcat");
+  const text = document.getElementById("w-text"), meaning = document.getElementById("w-meaning"), example = document.getElementById("w-example");
+
+  document.getElementById("lookup").onclick = async () => {
+    if (!text.value.trim()) return text.focus();
+    try {
+      const r = await api(`/api/dictionary/${encodeURIComponent(text.value.trim())}`);
+      meaning.value = r.meaning; if (!example.value) example.value = r.example || "";
+      toast(r.phonetic ? `Found it ${r.phonetic}` : "Found it");
+    } catch (e) { toast(e.message); }
+  };
+
+  document.getElementById("add").onsubmit = async (e) => {
+    e.preventDefault();
+    const err = document.getElementById("add-err"); err.hidden = true;
+    const btn = e.submitter; btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await api("/api/words", { method: "POST", body: {
+        text: text.value, meaning: meaning.value, example: example.value, category_ids: pressedIds($view, "newcat") } });
+      toast("Saved ✓");
+      const firstWord = words.length === 0;
+      await screens["/words"]({ params });
+      if (firstWord) maybeAskForNotifications();
+    } catch (ex) { err.textContent = ex.message; err.hidden = false; btn.disabled = false; btn.textContent = "Save word"; }
+  };
+
+  document.getElementById("search").oninput = (e) => {
+    const q = e.target.value.toLowerCase();
+    $view.querySelectorAll(".word-item").forEach((el) => (el.hidden = !el.dataset.text.includes(q)));
+  };
+  bindWordItems(words, params);
+  if (words.length) maybeAskForNotifications();
+};
+
+function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
+
+function wordItem(w) {
+  return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
+    <summary><span><span class="word-text">${esc(w.text)}</span> <span class="muted small">${esc(w.phonetic)}</span></span>
+      <span class="box-badge">${boxLabel(w.box)}</span></summary>
+    <div class="stack" style="margin-top:8px">
+      <div>${esc(w.meaning)}</div>
+      ${w.example ? `<div class="muted"><i>“${esc(w.example)}”</i></div>` : ""}
+      ${w.categories.length ? `<div class="chips">${w.categories.map((c) => `<span class="chip"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>`).join("")}</div>` : ""}
+      <div class="row">
+        ${w.audio_url ? `<button class="ghost small" data-audio="${esc(w.audio_url)}">🔊 Listen</button>` : ""}
+        <button class="ghost small" data-edit="${w.id}">Edit</button>
+        <button class="danger small" data-del="${w.id}">Delete</button>
+      </div>
+    </div></details>`;
+}
+
+function bindWordItems(words, params) {
+  $view.querySelectorAll("[data-audio]").forEach((b) => (b.onclick = () => new Audio(b.dataset.audio).play()));
+  $view.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
+    if (!confirmInline(b)) return;
+    await api(`/api/words/${b.dataset.del}`, { method: "DELETE" }); toast("Deleted"); screens["/words"]({ params });
+  }));
+  $view.querySelectorAll("[data-edit]").forEach((b) => (b.onclick = () => {
+    const w = words.find((x) => x.id === Number(b.dataset.edit));
+    const box = b.closest(".stack");
+    box.innerHTML = `
+      <div><label>Word</label><input data-f="text" value="${esc(w.text)}" /></div>
+      <div><label>Meaning</label><textarea data-f="meaning">${esc(w.meaning)}</textarea></div>
+      <div><label>Example</label><input data-f="example" value="${esc(w.example)}" /></div>
+      <div><label>Categories</label>${catChips(w.categories.map((c) => c.id), "editcat")}</div>
+      <div class="row"><button class="small" data-save>Save</button><button class="ghost small" data-cancel>Cancel</button></div>`;
+    bindToggleChips(box, "editcat");
+    box.querySelector("[data-cancel]").onclick = () => screens["/words"]({ params });
+    box.querySelector("[data-save]").onclick = async () => {
+      const f = (n) => box.querySelector(`[data-f="${n}"]`).value;
+      try {
+        await api(`/api/words/${w.id}`, { method: "PATCH", body: { text: f("text"), meaning: f("meaning"), example: f("example"), category_ids: pressedIds(box, "editcat") } });
+        toast("Saved ✓"); screens["/words"]({ params });
+      } catch (e) { toast(e.message); }
+    };
+  }));
+}
+
+// Two-tap delete instead of a blocking browser dialog.
+function confirmInline(btn) {
+  if (btn.dataset.armed) return true;
+  btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = "Tap again to delete";
+  setTimeout(() => { delete btn.dataset.armed; btn.textContent = old; }, 3000);
+  return false;
+}
+
+screens["/categories"] = async () => {
+  await loadCategories();
+  const colors = ["#4F46E5", "#DC2626", "#16A34A", "#D97706", "#0891B2", "#DB2777", "#7C3AED", "#475569"];
+  $view.innerHTML = `
+    <h1>Categories</h1>
+    <div class="card">
+      <h2>New category</h2>
+      <form id="new-cat" class="stack">
+        <input id="cat-name" placeholder="e.g. Work, IELTS, Movies" required maxlength="60" />
+        <div class="chips" id="colors">${colors.map((c, i) => `<button type="button" class="chip" data-color="${c}" aria-pressed="${i === 0}" aria-label="Color ${c}"><span class="dot" style="background:${c}"></span></button>`).join("")}</div>
+        <button class="block">Create</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Notifications per category</h2>
+      <p class="small muted">Turn a category off to stop getting reminders for its words. Words without a category are always included.</p>
+      ${state.categories.length ? state.categories.map((c) => `
+        <div class="row between word-item">
+          <a class="grow row" href="#/words?category=${c.id}" style="color:inherit;text-decoration:none">
+            <span class="dot" style="background:${esc(c.color)}"></span><b>${esc(c.name)}</b>
+            <span class="muted small">${c.word_count} words</span></a>
+          <label class="switch" title="Notifications"><input type="checkbox" data-notify="${c.id}" ${c.notify ? "checked" : ""} aria-label="Notifications for ${esc(c.name)}" /><span></span></label>
+          <button class="danger small" data-delcat="${c.id}" aria-label="Delete ${esc(c.name)}">✕</button>
+        </div>`).join("") : `<p class="muted">No categories yet.</p>`}
+    </div>`;
+
+  const colorBtns = $view.querySelectorAll("[data-color]");
+  colorBtns.forEach((b) => (b.onclick = () => colorBtns.forEach((x) => x.setAttribute("aria-pressed", x === b))));
+  document.getElementById("new-cat").onsubmit = async (e) => {
+    e.preventDefault();
+    const color = $view.querySelector('[data-color][aria-pressed="true"]').dataset.color;
+    try { await api("/api/categories", { method: "POST", body: { name: document.getElementById("cat-name").value, color } }); toast("Category created"); screens["/categories"](); }
+    catch (ex) { toast(ex.message); }
+  };
+  $view.querySelectorAll("[data-notify]").forEach((i) => (i.onchange = async () => {
+    await api(`/api/categories/${i.dataset.notify}`, { method: "PATCH", body: { notify: i.checked } });
+    toast(i.checked ? "Reminders on" : "Reminders off for this category");
+  }));
+  $view.querySelectorAll("[data-delcat]").forEach((b) => (b.onclick = async () => {
+    if (!confirmInline(b)) return;
+    await api(`/api/categories/${b.dataset.delcat}`, { method: "DELETE" }); toast("Category deleted (words kept)"); screens["/categories"]();
+  }));
+};
+
+screens["/quiz"] = async ({ params }) => {
+  await loadCategories();
+  let category = params.get("category") || "";
+  let wordId = params.get("word");
+  let lastId = null, done = 0;
+
+  const next = async () => {
+    const q = new URLSearchParams();
+    if (category) q.set("category_id", category);
+    if (wordId) { q.set("word_id", wordId); wordId = null; }
+    if (lastId) q.set("exclude_id", lastId);
+    const w = await api(`/api/quiz/next?${q}`);
+    draw(w);
+  };
+
+  const draw = (w) => {
+    $view.innerHTML = `
+      <div class="row between"><h1>Quiz</h1>
+        <select id="qcat" style="width:auto"><option value="">All words</option>
+          ${state.categories.map((c) => `<option value="${c.id}" ${String(c.id) === category ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
+      ${!w ? `<div class="card center pad"><p>No words to practise yet.</p><a class="btn" href="#/words">Add words</a></div>` : `
+      <div class="card quiz-card">
+        <p class="muted small">${done ? `${done} reviewed this session · ` : ""}${boxLabel(w.box)}</p>
+        <p class="quiz-word">${esc(w.text)}</p>
+        <p class="muted">${esc(w.phonetic)} ${w.audio_url ? `<button class="ghost small" id="listen">🔊</button>` : ""}</p>
+        <div id="answer" hidden>
+          <p class="quiz-meaning">${esc(w.meaning)}</p>
+          ${w.example ? `<p class="muted"><i>“${esc(w.example)}”</i></p>` : ""}
+          <div class="quiz-actions">
+            <button class="bad" id="forgot">✗ Forgot</button>
+            <button class="good" id="knew">✓ I knew it</button>
+          </div>
+        </div>
+        <button class="block" id="reveal" style="margin-top:1rem">Show meaning</button>
+      </div>
+      <p class="center small muted">Think of the meaning first, then check. Words you forget come back sooner.</p>`}`;
+    document.getElementById("qcat").onchange = (e) => { category = e.target.value; lastId = null; next(); };
+    if (!w) return;
+    document.getElementById("listen")?.addEventListener("click", () => new Audio(w.audio_url).play());
+    document.getElementById("reveal").onclick = (e) => { e.target.hidden = true; document.getElementById("answer").hidden = false; };
+    const answer = async (knew) => {
+      await api("/api/quiz/answer", { method: "POST", body: { word_id: w.id, knew } });
+      done++; lastId = w.id; next();
+    };
+    document.getElementById("knew").onclick = () => answer(true);
+    document.getElementById("forgot").onclick = () => answer(false);
+  };
+  await next();
+};
+
+screens["/progress"] = async () => {
+  const p = await api("/api/me/progress");
+  const max = Math.max(1, ...p.last_7_days.map((d) => d.reviews));
+  const dayName = (iso) => new Date(iso + "T12:00:00").toLocaleDateString(undefined, { weekday: "short" });
+  $view.innerHTML = `
+    <h1>Your progress</h1>
+    <div class="tiles">
+      <div class="tile"><div class="num">${p.streak_days} 🔥</div><div class="lbl">day streak</div></div>
+      <div class="tile"><div class="num">${p.mastered}</div><div class="lbl">words mastered</div></div>
+      <div class="tile"><div class="num">${p.total_words}</div><div class="lbl">words saved</div></div>
+      <div class="tile"><div class="num">${p.accuracy ?? "–"}${p.accuracy != null ? "%" : ""}</div><div class="lbl">answers correct</div></div>
+    </div>
+    <div class="card">
+      <h2>Reviews in the last 7 days</h2>
+      <div class="bars" role="img" aria-label="Reviews per day: ${p.last_7_days.map((d) => `${dayName(d.date)} ${d.reviews}`).join(", ")}">
+        ${p.last_7_days.map((d) => `<div class="bar-col" tabindex="0"><span class="tip">${dayName(d.date)}: ${d.reviews} reviews</span>
+          <div class="bar" style="height:${(d.reviews / max) * 100}%"></div></div>`).join("")}
+      </div>
+      <div class="bar-labels">${p.last_7_days.map((d) => `<span>${dayName(d.date)}</span>`).join("")}</div>
+    </div>
+    <div class="card">
+      <h2>Where your words are</h2>
+      <table class="simple">
+        <tr><td>New</td><td>${p.new}</td></tr>
+        <tr><td>Learning</td><td>${p.learning}</td></tr>
+        <tr><td>Mastered ⭐</td><td>${p.mastered}</td></tr>
+        <tr><td>Due for review now</td><td>${p.due_now}</td></tr>
+      </table>
+      ${p.due_now ? `<a class="btn block" href="#/quiz" style="margin-top:12px">Review ${p.due_now} due words</a>` : ""}
+    </div>
+    ${p.hardest.length ? `<div class="card"><h2>Hardest words</h2><table class="simple">
+      ${p.hardest.map((h) => `<tr><td>${esc(h.text)}</td><td>forgot ${h.times_wrong}×</td></tr>`).join("")}</table></div>` : ""}`;
+};
+
+screens["/settings"] = async () => {
+  const [s, lists] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists")]);
+  const zones = (Intl.supportedValuesOf?.("timeZone") ?? [s.timezone]);
+  if (!zones.includes(s.timezone)) zones.unshift(s.timezone);
+  const hours = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => i + from);
+  const fmtH = (h) => (h === 24 ? "Midnight" : new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" }));
+  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const paused = s.paused_until && new Date(s.paused_until) > new Date();
+
+  $view.innerHTML = `
+    <h1>Settings</h1>
+    <div class="card stack">
+      <h2>Notifications</h2>
+      <div id="push-status"></div>
+    </div>
+    <div class="card stack">
+      <h2>When to remind me</h2>
+      <div><label for="every">How often</label><select id="every">
+        ${[[30, "Every 30 minutes"], [60, "Every hour"], [120, "Every 2 hours"], [180, "Every 3 hours"], [240, "Every 4 hours"], [360, "3 times a day"], [720, "Twice a day"], [1440, "Once a day"]]
+          .map(([v, l]) => `<option value="${v}" ${v === s.notify_every_minutes ? "selected" : ""}>${l}</option>`).join("")}
+        ${[30, 60, 120, 180, 240, 360, 720, 1440].includes(s.notify_every_minutes) ? "" : `<option selected value="${s.notify_every_minutes}">Every ${s.notify_every_minutes} min</option>`}
+      </select></div>
+      <div class="row">
+        <div class="grow"><label for="start">From</label><select id="start">${hours(0, 23).map((h) => `<option value="${h}" ${h === s.active_start_hour ? "selected" : ""}>${fmtH(h)}</option>`).join("")}</select></div>
+        <div class="grow"><label for="end">Until</label><select id="end">${hours(1, 24).map((h) => `<option value="${h}" ${h === s.active_end_hour ? "selected" : ""}>${fmtH(h)}</option>`).join("")}</select></div>
+      </div>
+      <div><label>Days</label><div class="days">${dayNames.map((d, i) => `<button type="button" class="chip" data-day="${i}" aria-pressed="${s.active_days.includes(String(i))}">${d}</button>`).join("")}</div></div>
+      <div><label for="limit">Maximum per day</label><select id="limit">${[3, 5, 8, 10, 15, 20, 30].concat(s.daily_limit).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b)
+        .map((v) => `<option ${v === s.daily_limit ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+      <div class="row between"><div class="grow"><b>Quiz mode</b><br /><span class="small muted">Show only the word in the notification, so you try to remember the meaning first.</span></div>
+        <label class="switch"><input type="checkbox" id="quizmode" ${s.quiz_notifications ? "checked" : ""} aria-label="Quiz mode" /><span></span></label></div>
+      <div><label for="tz">Time zone</label><select id="tz">${zones.map((z) => `<option ${z === s.timezone ? "selected" : ""}>${esc(z)}</option>`).join("")}</select></div>
+      <p class="error" id="set-err" hidden></p>
+      <button class="block" id="save-settings">Save</button>
+    </div>
+    <div class="card stack">
+      <h2>Take a break</h2>
+      <p class="small muted">${paused ? `Paused until ${new Date(s.paused_until).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}.` : "Pause reminders during exams, trips or busy days."}</p>
+      <div class="row">${paused ? `<button class="secondary" data-pause="0">Resume now</button>` :
+        `<button class="ghost" data-pause="3">3 hours</button><button class="ghost" data-pause="24">1 day</button><button class="ghost" data-pause="168">1 week</button>`}</div>
+    </div>
+    <div class="card stack"><h2>Starter word lists</h2>${starterListHtml(lists)}</div>
+    <div class="card stack">
+      <h2>Account</h2>
+      <p class="small muted">Signed in as ${esc(state.user.email)}</p>
+      ${state.user.is_admin ? `<a class="btn secondary block" href="#/admin">📊 App statistics (admin)</a>` : ""}
+      <button class="ghost block" id="logout">Sign out</button>
+      <button class="danger block" id="delete-account">Delete my account and all data</button>
+      <p class="center small"><a href="/privacy.html">Privacy</a></p>
+    </div>`;
+
+  bindToggleChips($view, "day");
+  bindStarterButtons();
+  renderPushStatus();
+
+  document.getElementById("save-settings").onclick = async () => {
+    const err = document.getElementById("set-err"); err.hidden = true;
+    const start = Number(document.getElementById("start").value), end = Number(document.getElementById("end").value);
+    if (end <= start) { err.textContent = "“Until” must be later than “From”."; err.hidden = false; return; }
+    try {
+      await api("/api/me/settings", { method: "PUT", body: {
+        notify_every_minutes: Number(document.getElementById("every").value), active_start_hour: start, active_end_hour: end,
+        active_days: pressedIds($view, "day").sort().join(""), daily_limit: Number(document.getElementById("limit").value),
+        quiz_notifications: document.getElementById("quizmode").checked, timezone: document.getElementById("tz").value } });
+      toast("Settings saved ✓");
+    } catch (e) { err.textContent = e.message; err.hidden = false; }
+  };
+  $view.querySelectorAll("[data-pause]").forEach((b) => (b.onclick = async () => {
+    await api("/api/me/pause", { method: "POST", body: { hours: Number(b.dataset.pause) } });
+    toast(b.dataset.pause === "0" ? "Reminders resumed" : "Reminders paused"); screens["/settings"]();
+  }));
+  document.getElementById("logout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.user = null; location.hash = "#/login"; };
+  document.getElementById("delete-account").onclick = async (e) => {
+    const b = e.currentTarget;
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Tap again to permanently delete everything"; return; }
+    await api("/api/auth/me", { method: "DELETE" }); state.user = null; toast("Account deleted"); location.hash = "#/login";
+  };
+};
+
+screens["/admin"] = async () => {
+  const s = await api("/api/admin/stats");
+  const pct = (v) => (v == null ? "not enough data yet" : `${v}%`);
+  $view.innerHTML = `
+    <h1>App statistics</h1>
+    <div class="tiles">
+      <div class="tile"><div class="num">${s.users_total}</div><div class="lbl">users</div></div>
+      <div class="tile"><div class="num">${s.active_last_7_days}</div><div class="lbl">active last 7 days</div></div>
+    </div>
+    <div class="card"><table class="simple">
+      <tr><td>Sign-ups, last 7 days</td><td>${s.signups_last_7_days}</td></tr>
+      <tr><td>Users with notifications on</td><td>${s.users_with_notifications}</td></tr>
+      <tr><td>Users with 10+ words</td><td>${s.users_with_10_plus_words}</td></tr>
+      <tr><td>Average words per user</td><td>${s.avg_words_per_user}</td></tr>
+      <tr><td>Quiz answers, last 7 days</td><td>${s.reviews_last_7_days}</td></tr>
+      <tr><td>Came back after 1 day</td><td>${pct(s.retention_day_1_pct)}</td></tr>
+      <tr><td>Came back after 7 days</td><td>${pct(s.retention_day_7_pct)}</td></tr>
+      <tr><td>Came back after 28 days</td><td>${pct(s.retention_day_28_pct)}</td></tr>
+    </table></div>
+    <a href="#/settings">← Back to settings</a>`;
+};
+
+// ---------- push notifications ----------
+function b64ToUint8(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+}
+
+async function currentSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+
+async function enablePush() {
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") { toast("Notifications were not allowed"); return false; }
+  const { key } = await api("/api/push/public-key");
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToUint8(key) });
+  await api("/api/push/subscribe", { method: "POST", body: sub.toJSON() });
+  toast("Notifications on ✓");
+  return true;
+}
+
+async function renderPushStatus() {
+  const el = document.getElementById("push-status"); if (!el) return;
+  if (!pushSupported()) {
+    el.innerHTML = isIOS() && !isStandalone()
+      ? `<p>To get reminders on iPhone, add WordPop to your Home Screen first: tap <span class="share-ico">⬆</span> <b>Share</b> → <b>Add to Home Screen</b>, then open it from there.</p>`
+      : `<p class="muted">This browser doesn't support notifications.</p>`;
+    return;
+  }
+  const sub = await currentSubscription();
+  if (Notification.permission === "denied") {
+    el.innerHTML = `<p>Notifications are blocked. Turn them on in your phone's <b>Settings → Notifications → WordPop</b>.</p>`;
+  } else if (sub) {
+    el.innerHTML = `<p>✅ Notifications are on for this device.</p>
+      <div class="row"><button class="secondary" id="test-push">Send me a word now</button><button class="ghost" id="off-push">Turn off</button></div>`;
+    document.getElementById("test-push").onclick = async () => {
+      try { const r = await api("/api/push/test", { method: "POST" }); toast(r.delivered ? "Sent – check your notifications" : "Couldn't deliver, try turning notifications off and on"); }
+      catch (e) { toast(e.message); }
+    };
+    document.getElementById("off-push").onclick = async () => {
+      await api("/api/push/unsubscribe", { method: "POST", body: sub.toJSON() }); await sub.unsubscribe(); renderPushStatus();
+    };
+  } else {
+    el.innerHTML = `<p class="muted">Get your words as reminders on this device.</p><button class="block" id="on-push">Turn on notifications</button>`;
+    document.getElementById("on-push").onclick = async () => { try { await enablePush(); } catch (e) { toast(e.message); } renderPushStatus(); };
+  }
+}
+
+// Ask at a helpful moment (after adding a word), never on first load.
+async function maybeAskForNotifications() {
+  const box = document.getElementById("notif-ask");
+  if (!box || !pushSupported() || Notification.permission !== "default" || sessionStorageGet("askedPush")) return;
+  if (await currentSubscription()) return;
+  box.innerHTML = `<div class="card notice stack"><b>🔔 Want reminders for your words?</b>
+    <p class="small" style="margin:0">Allow notifications and WordPop will remind you of your words during the day. You choose how often in Settings.</p>
+    <div class="row"><button id="ask-yes">Allow notifications</button><button class="ghost" id="ask-no">Not now</button></div></div>`;
+  document.getElementById("ask-yes").onclick = async () => { try { await enablePush(); } catch (e) { toast(e.message); } box.innerHTML = ""; };
+  document.getElementById("ask-no").onclick = () => { sessionStorageSet("askedPush", "1"); box.innerHTML = ""; };
+}
+
+// ---------- router ----------
+async function render() {
+  const r = route();
+  const publicRoute = r.path === "/login";
+  if (!state.user && !publicRoute) {
+    try { state.user = await api("/api/auth/me"); }
+    catch { location.hash = "#/login"; return; }
+  }
+  if (state.user && publicRoute) { location.hash = "#/words"; return; }
+  $tabbar.hidden = !state.user;
+  $tabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("active", r.path === `/${a.dataset.tab}`));
+  const screen = screens[r.path] || screens["/words"];
+  try { await screen(r); }
+  catch (e) { $view.innerHTML = `<div class="card center pad"><p class="error">${esc(e.message)}</p><button onclick="location.reload()">Try again</button></div>`; }
+  window.scrollTo(0, 0);
+}
+
+window.addEventListener("hashchange", render);
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+// When a notification is tapped while the app is open, the service worker asks us to navigate.
+navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^\/?/, ""); });
+render();
