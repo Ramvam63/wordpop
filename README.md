@@ -83,7 +83,7 @@ erDiagram
 You need Python 3.12+.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/wordpop.git
+git clone https://github.com/Ramvam63/wordpop.git
 cd wordpop
 cp .env.example .env                 # then edit the values
 python scripts/generate_vapid_keys.py   # paste the two lines into .env
