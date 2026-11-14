@@ -26,11 +26,14 @@ def verify_password(password: str, hashed: str) -> bool:
         return False
 
 
-def create_token(user_id: int) -> str:
+def create_token(user: User) -> str:
     s = get_settings()
+    now = datetime.now(UTC)
     payload = {
-        "sub": str(user_id),
-        "exp": datetime.now(UTC) + timedelta(days=s.session_days),
+        "sub": str(user.id),
+        "ver": user.session_version or 0,
+        "iat": now,
+        "exp": now + timedelta(days=s.session_days),
     }
     return jwt.encode(payload, s.secret_key, algorithm=ALGORITHM)
 
@@ -49,11 +52,15 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     try:
         payload = jwt.decode(token, get_settings().secret_key, algorithms=[ALGORITHM])
         user_id = int(payload["sub"])
+        version = int(payload.get("ver", 0))
     except (jwt.PyJWTError, KeyError, ValueError):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired, please sign in again") from None
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account not found")
+    if version != (user.session_version or 0):
+        # The password was changed after this session started (e.g. via "Forgot password?").
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Please sign in again")
 
     # Track activity (at most once every 10 minutes) for retention analytics.
     now = datetime.now(UTC)

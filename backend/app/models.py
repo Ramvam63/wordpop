@@ -40,6 +40,9 @@ class User(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Bumped when the password changes; sessions carrying an older number are rejected.
+    session_version: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
 
     # Notification settings
     notify_every_minutes: Mapped[int] = mapped_column(Integer, default=60)
@@ -131,3 +134,17 @@ class ReviewEvent(Base):
     word_id: Mapped[int] = mapped_column(ForeignKey("words.id", ondelete="CASCADE"), index=True)
     knew: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class PasswordResetToken(Base):
+    """One-time link for "Forgot password?". Only a SHA-256 hash of the token is stored,
+    so a database leak cannot be used to reset anyone's password."""
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -7,7 +7,7 @@ pronunciation are filled in automatically – and WordPop sends it back to you a
 at the times you choose. A built-in quiz with spaced repetition brings back the words you forget
 and spaces out the ones you know.
 
-![CI](https://github.com/YOUR-USERNAME/wordpop/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/Ramvam63/wordpop/actions/workflows/ci.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon-336791)
@@ -22,6 +22,7 @@ and spaces out the ones you know.
 ## Features
 
 - **User accounts** – email + password, hashed with bcrypt; sessions in secure HTTP-only cookies
+- **Forgot password** – one-time, 1-hour email link (only a hash is stored); resetting signs out all other devices; rate-limited
 - **Auto-filled words** – type a word, get its definition, example, phonetic spelling and audio
 - **Categories** – a word can belong to several categories (e.g. *IELTS* and *Work*)
 - **Per-category notifications** – switch reminders on or off for each category
@@ -43,6 +44,7 @@ and spaces out the ones you know.
 | Database | PostgreSQL (Neon serverless, free tier); SQLite for local dev and tests |
 | Frontend | Progressive Web App – vanilla JavaScript, service worker, Web App Manifest |
 | Notifications | Web Push (VAPID) via `pywebpush` |
+| Email | SMTP (Gmail App Password or any provider) for password resets |
 | Scheduling | GitHub Actions cron (every 15 min) running `python -m app.scheduler` |
 | Quality | pytest, ruff, GitHub Actions CI |
 | Packaging | Docker, docker compose |
@@ -128,7 +130,7 @@ The interactive API documentation is available at `/docs` when the server is run
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /api/auth/signup` · `POST /api/auth/login` · `POST /api/auth/logout` · `GET/DELETE /api/auth/me` |
+| Auth | `POST /api/auth/signup` · `POST /api/auth/login` · `POST /api/auth/logout` · `GET/DELETE /api/auth/me` · `POST /api/auth/forgot-password` · `POST /api/auth/reset-password` |
 | Words | `GET/POST /api/words` · `PATCH/DELETE /api/words/{id}` · `GET /api/dictionary/{word}` |
 | Categories | `GET/POST /api/categories` · `PATCH/DELETE /api/categories/{id}` |
 | Quiz | `GET /api/quiz/next` · `POST /api/quiz/answer` |
@@ -164,6 +166,7 @@ wordpop/
 
 - [x] v1 – personal script: SQLite + ntfy notifications
 - [x] v2 – multi-user PWA: accounts, categories, schedules, quiz, progress, web push
+- [x] Forgot password by email
 - [ ] Sign in with Google / magic-link email
 - [ ] Translations into the learner's own language
 - [ ] Database migrations with Alembic

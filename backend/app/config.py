@@ -38,6 +38,13 @@ class Settings:
         }
         self.frontend_dir: Path = Path(os.getenv("FRONTEND_DIR", ROOT_DIR / "frontend"))
         self.session_days: int = int(os.getenv("SESSION_DAYS", "30"))
+        # Email (for password resets). Works with Gmail + an App Password, or any SMTP provider.
+        self.smtp_host: str = os.getenv("SMTP_HOST", "")
+        self.smtp_port: int = int(os.getenv("SMTP_PORT") or 587)
+        self.smtp_user: str = os.getenv("SMTP_USER", "")
+        self.smtp_password: str = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
+        self.mail_from: str = os.getenv("MAIL_FROM", "") or self.smtp_user
+        self.reset_token_minutes: int = int(os.getenv("RESET_TOKEN_MINUTES") or 60)
         self.dictionary_api: str = os.getenv(
             "DICTIONARY_API", "https://api.dictionaryapi.dev/api/v2/entries/en/"
         )

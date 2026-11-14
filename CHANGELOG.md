@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0] – 2026-11-14
+### Added
+- "Forgot password?" – emailed one-time reset link (1 hour), stored as a SHA-256 hash, rate-limited to 3 per hour
+- Resetting the password signs out every other device (session version in the token)
+- Helpful hint when signing up with an email that already has an account
+- Existing databases get new columns automatically on start-up
+
 ## [2.0.0] – 2026-11-14
 ### Added
 - Multi-user accounts with secure sessions

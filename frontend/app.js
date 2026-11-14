@@ -96,7 +96,7 @@ screens["/login"] = async () => {
     });
     return;
   }
-  let mode = "signup";
+  let mode = sessionStorageGet("authMode") || "signup";
   const draw = () => {
     $view.innerHTML = `
       <div class="card stack">
@@ -107,6 +107,7 @@ screens["/login"] = async () => {
           <div><label for="pw">Password</label>
             <input id="pw" type="password" minlength="8" required autocomplete="${mode === "signup" ? "new-password" : "current-password"}" />
             ${mode === "signup" ? '<p class="small muted">At least 8 characters.</p>' : ""}</div>
+          ${mode === "login" ? '<p class="small" style="margin:0;text-align:right"><a href="#/forgot">Forgot password?</a></p>' : ""}
           <p class="error" id="err" hidden></p>
           <button class="block" type="submit">${mode === "signup" ? "Create account" : "Sign in"}</button>
         </form>
@@ -114,7 +115,9 @@ screens["/login"] = async () => {
           <a href="#" id="switch">${mode === "signup" ? "Sign in" : "Create an account"}</a></p>
         <p class="center small muted"><a href="/privacy.html">Privacy</a></p>
       </div>`;
-    document.getElementById("switch").onclick = (e) => { e.preventDefault(); mode = mode === "signup" ? "login" : "signup"; draw(); };
+    document.getElementById("switch").onclick = (e) => {
+      e.preventDefault(); mode = mode === "signup" ? "login" : "signup"; sessionStorageSet("authMode", mode); draw();
+    };
     document.getElementById("auth").onsubmit = async (e) => {
       e.preventDefault();
       const err = document.getElementById("err"); err.hidden = true;
@@ -124,10 +127,75 @@ screens["/login"] = async () => {
         state.user = await api(`/api/auth/${mode}`, { method: "POST", body });
         await loadCategories();
         location.hash = mode === "signup" ? "#/welcome" : "#/words";
-      } catch (ex) { err.textContent = ex.message; err.hidden = false; }
+      } catch (ex) {
+        err.innerHTML = esc(ex.message) + (mode === "signup" && /already exists/.test(ex.message)
+          ? ' – <a href="#" id="to-login">sign in</a> or <a href="#/forgot">reset your password</a>.' : "");
+        err.hidden = false;
+        document.getElementById("to-login")?.addEventListener("click", (e2) => {
+          e2.preventDefault(); mode = "login"; sessionStorageSet("authMode", mode); draw(); email.value = body.email;
+        });
+      }
     };
   };
   draw();
+};
+
+screens["/forgot"] = async () => {
+  $view.innerHTML = `
+    <div class="card stack">
+      <h1>Forgot your password?</h1>
+      <p class="muted">Enter the email you signed up with. We'll send you a link to choose a new password.</p>
+      <form id="forgot" class="stack">
+        <div><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" required /></div>
+        <p class="error" id="err" hidden></p>
+        <button class="block" type="submit">Send reset link</button>
+      </form>
+      <p class="center small"><a href="#/login">← Back to sign in</a></p>
+    </div>`;
+  document.getElementById("forgot").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.submitter; btn.disabled = true; btn.textContent = "Sending…";
+    try {
+      const r = await api("/api/auth/forgot-password", { method: "POST", body: { email: document.getElementById("f-email").value.trim() } });
+      $view.innerHTML = `<div class="card stack center">
+        <h1>Check your email 📬</h1>
+        <p>${esc(r.message)}</p>
+        <p class="small muted">The link expires in 1 hour. Not there? Check your spam folder, or try again in a few minutes.</p>
+        <a href="#/login">← Back to sign in</a></div>`;
+    } catch (ex) {
+      const err = document.getElementById("err"); err.textContent = ex.message; err.hidden = false;
+      btn.disabled = false; btn.textContent = "Send reset link";
+    }
+  };
+};
+
+screens["/reset"] = async ({ params }) => {
+  const token = params.get("token");
+  if (!token) { location.hash = "#/forgot"; return; }
+  $view.innerHTML = `
+    <div class="card stack">
+      <h1>Choose a new password</h1>
+      <form id="reset" class="stack">
+        <div><label for="r-pw">New password</label><input id="r-pw" type="password" minlength="8" required autocomplete="new-password" />
+          <p class="small muted">At least 8 characters.</p></div>
+        <div><label for="r-pw2">Repeat new password</label><input id="r-pw2" type="password" minlength="8" required autocomplete="new-password" /></div>
+        <p class="error" id="err" hidden></p>
+        <button class="block" type="submit">Save new password</button>
+      </form>
+    </div>`;
+  document.getElementById("reset").onsubmit = async (e) => {
+    e.preventDefault();
+    const err = document.getElementById("err"); err.hidden = true;
+    const pw = document.getElementById("r-pw").value, pw2 = document.getElementById("r-pw2").value;
+    if (pw !== pw2) { err.textContent = "The two passwords don't match."; err.hidden = false; return; }
+    try {
+      state.user = await api("/api/auth/reset-password", { method: "POST", body: { token, password: pw } });
+      toast("Password changed ✓ You're signed in.");
+      location.hash = "#/words";
+    } catch (ex) {
+      err.innerHTML = `${esc(ex.message)} <a href="#/forgot">Send a new link</a>`; err.hidden = false;
+    }
+  };
 };
 
 screens["/welcome"] = async () => {
@@ -573,13 +641,13 @@ async function maybeAskForNotifications() {
 // ---------- router ----------
 async function render() {
   const r = route();
-  const publicRoute = r.path === "/login";
+  const publicRoute = ["/login", "/forgot", "/reset"].includes(r.path);
   if (!state.user && !publicRoute) {
     try { state.user = await api("/api/auth/me"); }
     catch { location.hash = "#/login"; return; }
   }
-  if (state.user && publicRoute) { location.hash = "#/words"; return; }
-  $tabbar.hidden = !state.user;
+  if (state.user && r.path === "/login") { location.hash = "#/words"; return; }
+  $tabbar.hidden = !state.user || publicRoute;
   $tabbar.querySelectorAll("a").forEach((a) => a.classList.toggle("active", r.path === `/${a.dataset.tab}`));
   const screen = screens[r.path] || screens["/words"];
   try { await screen(r); }

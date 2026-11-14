@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import get_settings
@@ -34,4 +34,23 @@ def get_db() -> Iterator[Session]:
 def init_db(bind=None) -> None:
     from . import models  # noqa: F401  (register models)
 
-    Base.metadata.create_all(bind=bind or engine)
+    bind = bind or engine
+    Base.metadata.create_all(bind=bind)
+    _add_missing_columns(bind)
+
+
+def _add_missing_columns(bind) -> None:
+    """create_all() makes new tables but never changes existing ones.
+    This adds any new nullable columns to tables that already exist, so an
+    existing database keeps working after an upgrade. (Alembic is on the roadmap.)"""
+    inspector = inspect(bind)
+    with bind.begin() as conn:
+        for table in Base.metadata.sorted_tables:
+            if not inspector.has_table(table.name):
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table.name)}
+            for column in table.columns:
+                if column.name in existing or not column.nullable:
+                    continue
+                col_type = column.type.compile(dialect=bind.dialect)
+                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{column.name}" {col_type}'))
