@@ -110,3 +110,14 @@ def test_expired_subscription_is_removed(session_factory):
         stats = run_once(db, now=WED_10AM_TORONTO, sender=failing_sender)
         assert stats["sent"] == 0
         assert db.query(PushSubscription).count() == 0
+
+
+def test_network_error_on_one_device_does_not_stop_the_run(session_factory):
+    def flaky(sub, payload):
+        raise ConnectionError("push service unreachable")
+
+    with session_factory() as db:
+        _seed(db)
+        stats = run_once(db, now=WED_10AM_TORONTO, sender=flaky)
+        assert stats["sent"] == 0 and stats["checked"] == 1
+        assert db.query(PushSubscription).count() == 1  # kept: may work next time

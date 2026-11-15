@@ -56,6 +56,8 @@ def send_to_user(db: Session, user: User, payload: dict, sender: Sender | None =
                 db.delete(sub)
             else:
                 log.warning("Push failed for user %s: %s", user.id, exc)
+        except Exception as exc:  # network trouble etc. - never let one device stop the run
+            log.warning("Push error for user %s: %s", user.id, exc)
     db.commit()
     return delivered
 

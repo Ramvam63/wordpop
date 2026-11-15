@@ -45,6 +45,8 @@ class Settings:
         self.smtp_password: str = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
         self.mail_from: str = os.getenv("MAIL_FROM", "") or self.smtp_user
         self.reset_token_minutes: int = int(os.getenv("RESET_TOKEN_MINUTES") or 60)
+        # Secret key for the /api/tasks/send-notifications URL that an uptime monitor calls.
+        self.cron_secret: str = os.getenv("CRON_SECRET", "")
         self.dictionary_api: str = os.getenv(
             "DICTIONARY_API", "https://api.dictionaryapi.dev/api/v2/entries/en/"
         )
