@@ -182,3 +182,14 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 table.simple { width: 100%; border-collapse: collapse; font-size: .9rem; }
 table.simple td { padding: 6px 0; border-top: 1px solid var(--line); }
 table.simple td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.waking {
+  position: fixed; top: calc(env(safe-area-inset-top) + 56px); left: 50%; transform: translateX(-50%);
+  z-index: 30; background: var(--brown); color: var(--on-brown); padding: 10px 14px; border-radius: 12px;
+  font-size: .85rem; width: min(92vw, 420px); display: flex; gap: 10px; align-items: center; box-shadow: var(--shadow);
+}
+.spinner {
+  width: 16px; height: 16px; flex: none; border-radius: 50%;
+  border: 2px solid rgba(255, 247, 224, .35); border-top-color: var(--on-brown); animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

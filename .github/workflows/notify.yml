@@ -26,6 +26,11 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
+      - name: Keep the web app awake
+        # Visits the live app so the free server is less likely to fall asleep.
+        # Set APP_URL under Settings -> Secrets and variables -> Actions -> Variables.
+        if: ${{ vars.APP_URL != '' }}
+        run: curl -fsS --max-time 90 "${{ vars.APP_URL }}/api/health" || true
       - name: Send due notifications
         run: python -m app.scheduler
         env:

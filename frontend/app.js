@@ -13,21 +13,52 @@ function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch {
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 async function api(path, { method = "GET", body } = {}) {
-  const res = await fetch(path, {
-    method,
-    credentials: "same-origin",
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // The free server sleeps when unused; if a request is slow, say so instead of looking frozen.
+  const slow = setTimeout(() => showWaking(true), 2500);
+  let res;
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetch(path, {
+          method,
+          credentials: "same-origin",
+          headers: body ? { "Content-Type": "application/json" } : {},
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } catch (e) {
+        if (attempt >= 5) throw new Error("Can't reach WordPop. Check your internet connection and try again.");
+        showWaking(true);
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      }
+      // While waking up, the host may answer with its own HTML page instead of our JSON: wait and retry.
+      const isJson = (res.headers.get("content-type") || "").includes("json") || res.status === 204;
+      if (isJson || attempt >= 20) break;
+      showWaking(true);
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+  } finally { clearTimeout(slow); showWaking(false); }
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && !path.startsWith("/api/auth/")) { state.user = null; location.hash = "#/login"; }
     let msg = data.detail;
     if (Array.isArray(msg)) msg = msg.map((d) => d.msg.replace(/^Value error, /, "")).join(", ");
-    throw new Error(msg || `Something went wrong (${res.status})`);
+    const err = new Error(msg || `Something went wrong (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
   return data;
+}
+
+let wakingEl;
+function showWaking(on) {
+  if (on && !wakingEl) {
+    wakingEl = document.createElement("div");
+    wakingEl.className = "waking";
+    wakingEl.innerHTML = "<span class='spinner'></span> Waking up WordPop… the first load after a break takes a moment.";
+    document.body.appendChild(wakingEl);
+  } else if (!on && wakingEl) { wakingEl.remove(); wakingEl = null; }
 }
 
 let toastTimer;
@@ -642,7 +673,12 @@ async function render() {
   const publicRoute = ["/login", "/forgot", "/reset"].includes(r.path);
   if (!state.user && !publicRoute) {
     try { state.user = await api("/api/auth/me"); }
-    catch { location.hash = "#/login"; return; }
+    catch (e) {
+      if (e.status === 401) { location.hash = "#/login"; return; }
+      // Server unreachable: keep the user signed in and offer a retry instead of the login page.
+      $view.innerHTML = `<div class="card center pad"><p>${esc(e.message)}</p><button onclick="location.reload()">Try again</button></div>`;
+      return;
+    }
   }
   if (state.user && r.path === "/login") { location.hash = "#/words"; return; }
   $tabbar.hidden = !state.user || publicRoute;

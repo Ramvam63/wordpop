@@ -1,5 +1,5 @@
-// WordPop service worker: offline app shell + push notifications.
-const CACHE = "wordpop-v3";
+// WordPop service worker: instant start from cache + push notifications.
+const CACHE = "wordpop-v4";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -14,19 +14,39 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Network first for the app shell (so updates show up), cache as offline fallback. Never cache the API.
+// Only keep real WordPop files. While the free server is asleep, the host may answer
+// with its own "waking up" page, which must never replace the app in the cache.
+async function isGenuine(res, url) {
+  if (!res || !res.ok || res.type !== "basic") return false;
+  const type = res.headers.get("content-type") || "";
+  if (url.pathname.endsWith(".js")) return type.includes("javascript");
+  if (url.pathname.endsWith(".css")) return type.includes("css");
+  if (type.includes("text/html")) return (await res.clone().text()).includes('id="view"') ||
+    url.pathname.endsWith("privacy.html");
+  return true;
+}
+
+// Stale-while-revalidate: answer instantly from the cache, then refresh it in the
+// background so the next launch gets any update. The API is never cached.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "GET" || url.origin !== location.origin || url.pathname.startsWith("/api/")) return;
-  event.respondWith(
-    fetch(event.request)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(event.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(event.request).then((r) => r || caches.match("/index.html")))
-  );
+  const key = event.request.mode === "navigate" ? "/index.html" : event.request;
+
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(key);
+    const refresh = fetch(event.request).then(async (res) => {
+      if (await isGenuine(res, url)) await cache.put(key, res.clone());
+      return res;
+    }).catch(() => null);
+
+    if (cached) {
+      event.waitUntil(refresh);
+      return cached;
+    }
+    return (await refresh) || caches.match("/index.html");
+  })());
 });
 
 self.addEventListener("push", (event) => {
