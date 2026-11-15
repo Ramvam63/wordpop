@@ -1,7 +1,7 @@
 {
-  "name": "WordPop – English vocabulary reminders",
+  "name": "WordPop – reminders for what you want to remember",
   "short_name": "WordPop",
-  "description": "Save new English words and get reminders until you know them.",
+  "description": "Save words, phrases, quotes or poems in any language and get reminders until you remember them.",
   "start_url": "/#/words",
   "scope": "/",
   "display": "standalone",

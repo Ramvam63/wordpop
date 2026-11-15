@@ -132,7 +132,7 @@ screens["/login"] = async () => {
     $view.innerHTML = `
       <div class="card stack">
         <h1>${mode === "signup" ? "Create your account" : "Welcome back"}</h1>
-        <p class="muted">${mode === "signup" ? "Save new English words and get reminders until you know them." : "Sign in to see your words."}</p>
+        <p class="muted">${mode === "signup" ? "Save words, phrases, quotes or poems in any language, and get reminders until you remember them." : "Sign in to see your words."}</p>
         <form id="auth" class="stack">
           <div><label for="email">Email</label><input id="email" type="email" autocomplete="email" required /></div>
           <div><label for="pw">Password</label>
@@ -245,7 +245,7 @@ screens["/welcome"] = async () => {
 function starterListHtml(lists) {
   return lists.map((l) => `
     <div class="row between">
-      <div class="grow"><b>${esc(l.name)}</b> <span class="muted small">· ${l.count} words</span><br />
+      <div class="grow"><b>${esc(l.name)}</b> <span class="muted small">· ${l.count} items</span><br />
         <span class="small muted">${esc(l.description)}</span></div>
       <button class="secondary small" data-import="${esc(l.key)}">Add</button>
     </div>`).join("");
@@ -266,11 +266,11 @@ screens["/words"] = async ({ params }) => {
   const words = await api(`/api/words${filter ? `?category_id=${encodeURIComponent(filter)}` : ""}`);
   $view.innerHTML = `
     <div class="card">
-      <h2>Add a word</h2>
+      <h2>Add a word, phrase or quote</h2>
       <form id="add" class="stack">
-        <div class="row"><input id="w-text" class="grow" placeholder="e.g. resilient" required autocomplete="off" autocapitalize="none" style="width:auto" />
-          <button type="button" class="secondary" id="lookup">Look up</button></div>
-        <div><label for="w-meaning">Meaning <span class="muted small">(leave empty to fill automatically)</span></label>
+        <div class="row" style="align-items:flex-start"><textarea id="w-text" class="grow" rows="2" maxlength="500" placeholder="A word, phrase, sentence, quote or short poem – in any language" required autocomplete="off" autocapitalize="none" style="width:auto;min-height:48px"></textarea>
+          <button type="button" class="secondary" id="lookup" title="English dictionary">Look up</button></div>
+        <div><label for="w-meaning">Meaning or note <span class="muted small">(English words can be filled automatically)</span></label>
           <textarea id="w-meaning" rows="2"></textarea></div>
         <div><label for="w-example">Example</label><input id="w-example" /></div>
         <div><label>Categories</label>${catChips([], "newcat")}</div>
@@ -328,10 +328,10 @@ function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : 
 
 function wordItem(w) {
   return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
-    <summary><span><span class="word-text">${esc(w.text)}</span> <span class="muted small">${esc(w.phonetic)}</span></span>
+    <summary><span><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small">${esc(w.phonetic)}</span></span>
       <span class="box-badge">${boxLabel(w.box)}</span></summary>
     <div class="stack" style="margin-top:8px">
-      <div>${esc(w.meaning)}</div>
+      <div class="keep-lines" dir="auto">${esc(w.meaning)}</div>
       ${w.example ? `<div class="muted"><i>“${esc(w.example)}”</i></div>` : ""}
       ${w.categories.length ? `<div class="chips">${w.categories.map((c) => `<span class="chip"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>`).join("")}</div>` : ""}
       <div class="row">
@@ -352,8 +352,8 @@ function bindWordItems(words, params) {
     const w = words.find((x) => x.id === Number(b.dataset.edit));
     const box = b.closest(".stack");
     box.innerHTML = `
-      <div><label>Word</label><input data-f="text" value="${esc(w.text)}" /></div>
-      <div><label>Meaning</label><textarea data-f="meaning">${esc(w.meaning)}</textarea></div>
+      <div><label>Text</label><textarea data-f="text" rows="2" maxlength="500">${esc(w.text)}</textarea></div>
+      <div><label>Meaning or note</label><textarea data-f="meaning">${esc(w.meaning)}</textarea></div>
       <div><label>Example</label><input data-f="example" value="${esc(w.example)}" /></div>
       <div><label>Categories</label>${catChips(w.categories.map((c) => c.id), "editcat")}</div>
       <div class="row"><button class="small" data-save>Save</button><button class="ghost small" data-cancel>Cancel</button></div>`;
@@ -385,19 +385,19 @@ screens["/categories"] = async () => {
     <div class="card">
       <h2>New category</h2>
       <form id="new-cat" class="stack">
-        <input id="cat-name" placeholder="e.g. Work, IELTS, Movies" required maxlength="60" />
+        <input id="cat-name" placeholder="e.g. Spanish, Poems, Math, Motivation" required maxlength="60" />
         <div class="chips" id="colors">${colors.map((c, i) => `<button type="button" class="chip" data-color="${c}" aria-pressed="${i === 0}" aria-label="Color ${c}"><span class="dot" style="background:${c}"></span></button>`).join("")}</div>
         <button class="block">Create</button>
       </form>
     </div>
     <div class="card">
       <h2>Notifications per category</h2>
-      <p class="small muted">Turn a category off to stop getting reminders for its words. Words without a category are always included.</p>
+      <p class="small muted">Turn a category off to stop getting reminders for its entries. Entries without a category are always included.</p>
       ${state.categories.length ? state.categories.map((c) => `
         <div class="row between word-item">
           <a class="grow row" href="#/words?category=${c.id}" style="color:inherit;text-decoration:none">
             <span class="dot" style="background:${esc(c.color)}"></span><b>${esc(c.name)}</b>
-            <span class="muted small">${c.word_count} words</span></a>
+            <span class="muted small">${c.word_count} ${c.word_count === 1 ? "entry" : "entries"}</span></a>
           <label class="switch" title="Notifications"><input type="checkbox" data-notify="${c.id}" ${c.notify ? "checked" : ""} aria-label="Notifications for ${esc(c.name)}" /><span></span></label>
           <button class="danger small" data-delcat="${c.id}" aria-label="Delete ${esc(c.name)}">✕</button>
         </div>`).join("") : `<p class="muted">No categories yet.</p>`}
@@ -444,10 +444,10 @@ screens["/quiz"] = async ({ params }) => {
       ${!w ? `<div class="card center pad"><p>No words to practise yet.</p><a class="btn" href="#/words">Add words</a></div>` : `
       <div class="card quiz-card">
         <p class="muted small">${done ? `${done} reviewed this session · ` : ""}${boxLabel(w.box)}</p>
-        <p class="quiz-word">${esc(w.text)}</p>
+        <p class="quiz-word${w.text.length > 40 ? " long" : ""}" dir="auto">${esc(w.text)}</p>
         <p class="muted">${esc(w.phonetic)} ${w.audio_url ? `<button class="ghost small" id="listen">🔊</button>` : ""}</p>
         <div id="answer" hidden>
-          <p class="quiz-meaning">${esc(w.meaning)}</p>
+          <p class="quiz-meaning" dir="auto">${esc(w.meaning)}</p>
           ${w.example ? `<p class="muted"><i>“${esc(w.example)}”</i></p>` : ""}
           <div class="quiz-actions">
             <button class="bad" id="forgot">✗ Forgot</button>

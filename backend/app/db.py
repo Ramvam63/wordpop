@@ -54,3 +54,21 @@ def _add_missing_columns(bind) -> None:
                     continue
                 col_type = column.type.compile(dialect=bind.dialect)
                 conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN "{column.name}" {col_type}'))
+        _widen_text_columns(conn, inspector)
+
+
+def _widen_text_columns(conn, inspector) -> None:
+    """Columns that became TEXT in the models (e.g. words.text, to allow sentences and poems)
+    are widened in existing PostgreSQL databases. SQLite does not enforce lengths."""
+    if conn.dialect.name != "postgresql":
+        return
+    from sqlalchemy import Text
+
+    for table in Base.metadata.sorted_tables:
+        if not inspector.has_table(table.name):
+            continue
+        db_types = {c["name"]: c["type"] for c in inspector.get_columns(table.name)}
+        for column in table.columns:
+            current = db_types.get(column.name)
+            if isinstance(column.type, Text) and current is not None and getattr(current, "length", None):
+                conn.execute(text(f'ALTER TABLE {table.name} ALTER COLUMN "{column.name}" TYPE TEXT'))

@@ -93,7 +93,7 @@ class Word(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    text: Mapped[str] = mapped_column(String(120))
+    text: Mapped[str] = mapped_column(Text)  # a word, phrase, sentence, quote or short poem
     meaning: Mapped[str] = mapped_column(Text)
     example: Mapped[str] = mapped_column(Text, default="")
     phonetic: Mapped[str] = mapped_column(String(120), default="")

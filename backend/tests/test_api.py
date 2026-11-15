@@ -107,7 +107,10 @@ def test_quiz_flow_updates_spaced_repetition_and_progress(user_client):
 
 def test_starter_list_import_is_idempotent(user_client):
     lists = user_client.get("/api/starter-lists").json()
-    assert [l["name"] for l in lists] == ["Vocabulary", "Phrasal Verbs", "Idioms", "Casual"]
+    assert [l["name"] for l in lists] == [
+        "Vocabulary", "Phrasal Verbs", "Idioms", "Casual", "Motivation", "Math Formulas", "Poems",
+        "French Basics", "Spanish Basics", "Chinese Basics", "Hindi Basics",
+    ]
     first = user_client.post("/api/starter-lists/vocabulary/import").json()
     assert first["added"] == first["total"] > 0
     again = user_client.post("/api/starter-lists/vocabulary/import").json()
@@ -159,3 +162,12 @@ def test_frontend_is_served(client):
     r = client.get("/")
     assert r.status_code == 200 and "WordPop" in r.text
     assert client.get("/sw.js").status_code == 200
+
+
+def test_every_starter_list_imports_cleanly(user_client):
+    """All lists (incl. Chinese, Hindi, poems with line breaks, formulas) fit the 500-char limit."""
+    for item in user_client.get("/api/starter-lists").json():
+        r = user_client.post(f"/api/starter-lists/{item['key']}/import")
+        assert r.status_code == 200 and r.json()["added"] == item["count"], item["key"]
+    words = user_client.get("/api/words").json()
+    assert any(w["text"] == "你好" for w in words) and any(w["text"] == "नमस्ते" for w in words)

@@ -5,7 +5,8 @@
 <h1 align="center">WordPop</h1>
 
 <p align="center">
-  <b>Save new English words and get them as reminders on your phone until you know them.</b>
+  <b>Pop anything you want to remember onto your phone – until you know it by heart.</b><br/>
+  Words in any language · phrases · sentences · quotes · poems · motivational lines · math formulas · facts
 </p>
 
 <p align="center">
@@ -49,25 +50,46 @@
 </tr>
 </table>
 
+## What can you remember with WordPop?
+
+WordPop isn't only for vocabulary. Save **any short text** – up to 500 characters, with line breaks – and
+WordPop shows it to you on your phone at the times you choose, then quizzes you until it sticks.
+
+| Use it for | Example entry | Meaning / note |
+|---|---|---|
+| 🗣 **Words in any language** | *resilient* · *bonjour* · *你好 (nǐ hǎo)* · *नमस्ते (namaste)* | the meaning in your own language |
+| 💬 **Phrases & idioms** | *break the ice* · *¿Qué tal?* · *加油！(jiāyóu)* | when and how to use it |
+| ✍️ **Sentences** | *Could you say that again, please?* | a polite way to ask someone to repeat |
+| 📜 **Poems & verses** | a few lines of your favourite poem | the poet, or what it means to you |
+| 🔥 **Motivation & quotes** | *Small steps every day.* | who said it, or why it matters |
+| ➗ **Math & science formulas** | *a² + b² = c²* · *E = mc²* · *sin²x + cos²x = 1* | what each symbol means |
+| 🧠 **Anything else** | dates, definitions, exam facts, favourite verses, keyboard shortcuts… | a short explanation |
+
+- **Any language and script** – Chinese, Hindi, French, Spanish, Japanese, Arabic… Right-to-left text displays correctly too.
+- **Categories** keep each kind apart (e.g. *French*, *Chinese*, *Poems*, *Math*, *Motivation*), and you choose which ones send reminders.
+- **Automatic meanings** are available for English words and phrases; for everything else you write your own meaning or note.
+
 ## Screenshots
 
 | Words | Quiz | Progress | Settings |
 |---|---|---|---|
 | ![Words](docs/screenshots/words.png) | ![Quiz](docs/screenshots/quiz.png) | ![Progress](docs/screenshots/progress.png) | ![Settings](docs/screenshots/settings.png) |
 
-| Categories | iPhone install guide | Sign up |
-|---|---|---|
-| ![Categories](docs/screenshots/categories.png) | ![Install guide](docs/screenshots/install-guide.png) | ![Sign up](docs/screenshots/signup.png) |
+| Categories | Starter lists | iPhone install guide | Sign up |
+|---|---|---|---|
+| ![Categories](docs/screenshots/categories.png) | ![Starter lists](docs/screenshots/starter-lists.png) | ![Install guide](docs/screenshots/install-guide.png) | ![Sign up](docs/screenshots/signup.png) |
 
 ## Features
 
-- **Reminders on your phone** – each notification shows only the word, so you try to recall the meaning; tap it to check
-- **Auto-filled words** – type a word or phrase, get its meaning, an example, pronunciation and audio
-- **Categories** – a word can belong to several; switch reminders on or off per category
+- **Reminders on your phone** – each notification shows only your entry, so you try to recall the meaning; tap it to check
+- **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
+- **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
+- **Categories** – an entry can belong to several; switch reminders on or off per category
+- **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
 - **Your own schedule** – how often, active hours, active days, daily limit, pause for 3 hours / a day / a week, and your own time zone
 - **Spaced-repetition quiz** – words you forget come back sooner; words you know are spaced out
 - **Progress page** – streak, mastered words, accuracy, 7-day activity and hardest words
-- **Starter lists** – Vocabulary, Phrasal Verbs, Idioms and Casual English for a useful first day
+- **11 starter lists** for a useful first day – English (Vocabulary, Phrasal Verbs, Idioms, Casual), Motivation, Math Formulas, classic Poems, and French, Spanish, Chinese and Hindi basics
 - **Installable app (PWA)** – Home Screen icon, opens instantly from cache, step-by-step iPhone install guide
 - **Accounts & security** – bcrypt-hashed passwords, HTTP-only session cookies, **forgot-password emails** with one-time links (stored hashed, rate-limited), reset signs out other devices
 - **Privacy** – delete your account and all data in one tap
@@ -84,7 +106,7 @@
 | Hosting | **[Render](https://render.com)** (Docker web service) | Deploys automatically on every `git push` to `main` |
 | Scheduling & uptime | **[UptimeRobot](https://uptimerobot.com)** calls a secret task URL every 5 minutes | Sends due reminders on time and keeps the free server awake |
 | Email | **SMTP** (Gmail App Password) | Password-reset emails |
-| Word data | **Free Dictionary API** + **Wiktionary** fallback | Definitions, examples, phonetics and audio; Wiktionary covers phrases and idioms |
+| English look-up | **Free Dictionary API** + **Wiktionary** fallback | Auto-fills definitions, examples, phonetics and audio for English words and idioms |
 | Quality | **pytest** (37 tests), **ruff**, **GitHub Actions CI** | Every push is linted and tested automatically |
 | Packaging | **Docker**, docker compose | Same container locally and in production |
 
@@ -216,7 +238,9 @@ wordpop/
 - [x] Forgot password by email
 - [x] Amber design, reliable 5-minute reminders, instant start
 - [ ] Sign in with Google / magic-link email
-- [ ] Translations into the learner's own language
+- [x] Any language and any short text (sentences, quotes, poems, formulas)
+- [ ] Look-up and translation for more languages
+- [ ] Nicely typeset math formulas (LaTeX)
 - [ ] Database migrations with Alembic
 - [ ] Import / export words as CSV
 - [ ] Native iOS app (Swift) using the same API

@@ -56,14 +56,14 @@ class CategoryOut(BaseModel):
 
 
 class WordIn(BaseModel):
-    text: str = Field(min_length=1, max_length=120)
+    text: str = Field(min_length=1, max_length=500)
     meaning: str = ""  # left blank -> auto-filled from the dictionary
     example: str = ""
     category_ids: list[int] = []
 
 
 class WordUpdate(BaseModel):
-    text: str | None = Field(default=None, min_length=1, max_length=120)
+    text: str | None = Field(default=None, min_length=1, max_length=500)
     meaning: str | None = None
     example: str | None = None
     category_ids: list[int] | None = None

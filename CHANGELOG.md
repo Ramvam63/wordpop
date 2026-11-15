@@ -2,6 +2,9 @@
 
 ## [2.1.0] – 2026-11-14
 ### Added
+- Any language and any short text: entries up to 500 characters (sentences, quotes, poems, formulas) with line breaks and right-to-left support; existing PostgreSQL databases are widened automatically
+- Reminders rotate through all due entries
+- New starter lists: Motivation, Math Formulas, Poems (public domain), French, Spanish, Chinese and Hindi basics
 - Amber theme and flashcards app icon
 - Wiktionary fallback for dictionary look-ups (phrases and idioms)
 - Starter lists: Vocabulary, Phrasal Verbs, Idioms and a new Casual list; lists are matched by a fixed key, so renaming one never creates duplicate categories
