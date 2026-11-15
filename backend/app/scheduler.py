@@ -43,6 +43,7 @@ def run_once(db: Session, now: datetime | None = None, sender: Sender | None = N
             continue
         if send_to_user(db, user, build_payload(user, word), sender=sender):
             word.times_shown += 1
+            word.last_notified_at = now
             record_sent(user, now)
             stats["sent"] += 1
         db.commit()

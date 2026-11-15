@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -64,4 +66,8 @@ def send_test(user: User = Depends(get_current_user), db: Session = Depends(get_
         "url": "/#/words",
     }
     delivered = send_to_user(db, user, payload)
+    if word and delivered:
+        word.times_shown += 1
+        word.last_notified_at = datetime.now(UTC)
+        db.commit()
     return {"delivered": delivered}

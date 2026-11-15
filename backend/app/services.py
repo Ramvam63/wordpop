@@ -26,9 +26,15 @@ def pick_next_word(
 ) -> Word | None:
     """Choose the most useful word to review next.
 
-    Overdue words come first (oldest due date first). If nothing is due,
-    the word that will be due soonest is used, so there is always something
-    to practise.
+    In the quiz: overdue words first (oldest due date first); if nothing is due,
+    the word that will be due soonest, so there is always something to practise.
+
+    For notifications (only_notifiable=True) the reminders rotate:
+      1. words that are due for review come before words that aren't;
+      2. among those, the word sent longest ago comes first (never-sent words first);
+      3. ties are broken by the oldest due date.
+    So every due word gets its turn, and answering in the quiz still decides
+    when a word becomes due again.
     """
     now = now or datetime.now(UTC)
     stmt = (
@@ -45,7 +51,15 @@ def pick_next_word(
         words = [w for w in words if w.id != exclude_id]
     if not words:
         return None
-    words.sort(key=lambda w: (as_utc(w.due_at), w.times_shown))
+    if only_notifiable:
+        never = datetime.min.replace(tzinfo=UTC)
+        words.sort(key=lambda w: (
+            as_utc(w.due_at) > now,               # due words first
+            as_utc(w.last_notified_at) or never,  # least recently sent first
+            as_utc(w.due_at),
+        ))
+    else:
+        words.sort(key=lambda w: (as_utc(w.due_at), w.times_shown))
     return words[0]
 
 

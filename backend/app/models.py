@@ -107,6 +107,8 @@ class Word(Base):
     times_correct: Mapped[int] = mapped_column(Integer, default=0)
     times_wrong: Mapped[int] = mapped_column(Integer, default=0)
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When this word was last sent as a notification (used to rotate reminders).
+    last_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="words")
     categories: Mapped[list[Category]] = relationship(

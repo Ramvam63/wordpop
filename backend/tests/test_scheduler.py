@@ -121,3 +121,34 @@ def test_network_error_on_one_device_does_not_stop_the_run(session_factory):
         stats = run_once(db, now=WED_10AM_TORONTO, sender=flaky)
         assert stats["sent"] == 0 and stats["checked"] == 1
         assert db.query(PushSubscription).count() == 1  # kept: may work next time
+
+
+def test_reminders_rotate_through_due_words(session_factory):
+    """Without quiz answers, each reminder must still be a different word."""
+    sent = []
+    with session_factory() as db:
+        user = make_user(notify_every_minutes=30)
+        db.add(user)
+        db.flush()
+        for i, text in enumerate(["apple", "brave", "curious"]):
+            db.add(Word(user_id=user.id, text=text, meaning="m", due_at=WED_10AM_TORONTO - timedelta(days=3 - i)))
+        db.add(PushSubscription(user_id=user.id, endpoint="https://push/r", p256dh="k", auth="a"))
+        db.commit()
+        for step in range(6):
+            run_once(db, now=WED_10AM_TORONTO + timedelta(minutes=30 * step), sender=lambda s, p: sent.append(p["title"]))
+    assert sent == ["◆ apple", "◆ brave", "◆ curious", "◆ apple", "◆ brave", "◆ curious"]
+
+
+def test_due_words_come_before_words_not_yet_due(session_factory):
+    sent = []
+    with session_factory() as db:
+        user = make_user()
+        db.add(user)
+        db.flush()
+        db.add(Word(user_id=user.id, text="learned", meaning="m", due_at=WED_10AM_TORONTO + timedelta(days=5)))
+        db.add(Word(user_id=user.id, text="due", meaning="m", due_at=WED_10AM_TORONTO - timedelta(hours=1),
+                    last_notified_at=WED_10AM_TORONTO - timedelta(minutes=61)))
+        db.add(PushSubscription(user_id=user.id, endpoint="https://push/d", p256dh="k", auth="a"))
+        db.commit()
+        run_once(db, now=WED_10AM_TORONTO, sender=lambda s, p: sent.append(p["title"]))
+    assert sent == ["◆ due"]
