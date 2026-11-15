@@ -20,7 +20,7 @@ Sender = Callable[[PushSubscription, dict], None]
 
 
 def build_payload(user: User, word: Word) -> dict:
-    title = f"📘 {word.text}"
+    title = f"📙 {word.text}"
     if word.phonetic:
         title += f"  {word.phonetic}"
     if user.quiz_notifications:

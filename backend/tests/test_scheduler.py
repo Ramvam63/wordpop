@@ -86,7 +86,7 @@ def test_run_once_sends_only_words_from_enabled_categories(session_factory):
         _seed(db)
         stats = run_once(db, now=WED_10AM_TORONTO, sender=lambda sub, p: sent.append(p))
         assert stats["sent"] == 1
-        assert sent[0]["title"].startswith("📘 ielts")  # the more overdue "muted" word is skipped
+        assert sent[0]["title"].startswith("📙 ielts")  # the more overdue "muted" word is skipped
         user = db.query(User).one()
         assert user.notified_today == 1
 
