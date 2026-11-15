@@ -1,5 +1,5 @@
 // WordPop service worker: offline app shell + push notifications.
-const CACHE = "wordpop-v2";
+const CACHE = "wordpop-v3";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {

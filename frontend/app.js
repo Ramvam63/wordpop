@@ -423,7 +423,7 @@ screens["/quiz"] = async ({ params }) => {
             <button class="good" id="knew">✓ I knew it</button>
           </div>
         </div>
-        <button class="block" id="reveal" style="margin-top:1rem">Show meaning</button>
+        <button class="block brown" id="reveal" style="margin-top:1rem">Show meaning</button>
       </div>
       <p class="center small muted">Think of the meaning first, then check. Words you forget come back sooner.</p>`}`;
     document.getElementById("qcat").onchange = (e) => { category = e.target.value; lastId = null; next(); };

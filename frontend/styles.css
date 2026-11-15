@@ -5,11 +5,17 @@
   --ink-2: #4B5563;
   --muted: #6B7280;
   --line: #E5E7EB;
-  --brand: #4F46E5;
-  --brand-ink: #FFFFFF;
-  --brand-soft: #EEF2FF;
-  --good: #15803D;
-  --bad: #B91C1C;
+  /* Amber theme – matches the app icon */
+  --accent: #F7B901;      /* amber: primary buttons, quiz card */
+  --on-accent: #3B2300;   /* dark brown text on amber */
+  --brown: #6E3E00;       /* deep amber-brown (icon card) */
+  --on-brown: #FFF7E0;    /* cream text on brown */
+  --brand: #9A5B00;       /* links, active tab, highlights (readable on white) */
+  --brand-soft: #FFF4D1;  /* soft amber backgrounds */
+  --chart: #B37400;
+  --good: #3F6212;        /* olive green */
+  --bad: #B4471F;         /* terracotta */
+  --error: #B91C1C;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(17, 24, 39, .06), 0 4px 16px rgba(17, 24, 39, .05);
   --tabbar-h: 64px;
@@ -18,8 +24,8 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0F1115; --card: #181B22; --ink: #F3F4F6; --ink-2: #C7CBD3; --muted: #9CA3AF;
-    --line: #2A2F3A; --brand: #818CF8; --brand-ink: #0F1115; --brand-soft: #1E2136;
-    --good: #4ADE80; --bad: #F87171; --shadow: none;
+    --line: #2A2F3A; --brand: #FBBF24; --brand-soft: #3A2A05; --chart: #D99A00;
+    --on-accent: #2A1A00; --good: #4D7C0F; --bad: #B4471F; --error: #F87171; --shadow: none;
   }
 }
 
@@ -71,12 +77,13 @@ input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px s
 
 button, .btn {
   font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 10px 16px;
-  background: var(--brand); color: var(--brand-ink); cursor: pointer; text-decoration: none;
+  background: var(--accent); color: var(--on-accent); cursor: pointer; text-decoration: none;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px;
 }
 button.secondary { background: var(--brand-soft); color: var(--brand); }
 button.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line); }
-button.danger { background: transparent; color: var(--bad); border: 1px solid var(--line); }
+button.danger { background: transparent; color: var(--error); border: 1px solid var(--line); }
+button.brown { background: var(--brown); color: var(--on-brown); }
 button.good { background: var(--good); color: #fff; }
 button.bad { background: var(--bad); color: #fff; }
 button:disabled { opacity: .55; cursor: default; }
@@ -109,10 +116,15 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
   content: ""; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px;
   background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 2px rgba(0,0,0,.25);
 }
-.switch input:checked + span { background: var(--brand); }
+.switch input:checked + span { background: var(--accent); }
 .switch input:checked + span::before { transform: translateX(20px); }
 
-.quiz-card { text-align: center; padding: 32px 20px; }
+.quiz-card {
+  text-align: center; padding: 32px 20px;
+  background: var(--accent); color: var(--on-accent); border-color: transparent;
+}
+.quiz-card .muted { color: var(--brown); }
+.quiz-card button.ghost { color: var(--on-accent); border-color: rgba(59, 35, 0, .25); }
 .quiz-word { font-size: 2rem; font-weight: 800; margin: 0; }
 .quiz-meaning { font-size: 1.1rem; margin-top: 1rem; }
 .quiz-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 1.25rem; }
@@ -126,7 +138,7 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 .bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 140px;
   border-bottom: 1px solid var(--line); padding-top: 18px; }
 .bar-col { position: relative; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
-.bar { background: var(--brand); border-radius: 4px 4px 0 0; min-height: 2px; }
+.bar { background: var(--chart); border-radius: 4px 4px 0 0; min-height: 2px; }
 .bar-col:hover .bar, .bar-col:focus .bar { filter: brightness(1.15); }
 .bar-col .tip {
   position: absolute; bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
@@ -166,7 +178,7 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
   font-size: .9rem; z-index: 20; max-width: 90vw; box-shadow: var(--shadow);
 }
 .notice { background: var(--brand-soft); border-color: var(--brand); }
-.error { color: var(--bad); font-size: .9rem; }
+.error { color: var(--error); font-size: .9rem; }
 table.simple { width: 100%; border-collapse: collapse; font-size: .9rem; }
 table.simple td { padding: 6px 0; border-top: 1px solid var(--line); }
 table.simple td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
