@@ -31,7 +31,7 @@ and spaces out the ones you know.
 - **Quiz mode** – optional notifications that hide the meaning so you try to recall it first
 - **Spaced repetition** – a Leitner-box system schedules each word's next review
 - **Progress page** – streak, mastered words, accuracy, 7-day activity and hardest words
-- **Starter word lists** – IELTS, Business English, Phrasal Verbs and Idioms for a useful first day
+- **Starter word lists** – Vocabulary, Phrasal Verbs, Idioms and Casual English for a useful first day
 - **iPhone install guide** – walks users through *Add to Home Screen*, which iOS requires for web push
 - **Admin analytics** – sign-ups, weekly active users and day-1/7/28 retention
 - **Privacy** – users can delete their account and all data in one tap

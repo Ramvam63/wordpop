@@ -107,13 +107,31 @@ def test_quiz_flow_updates_spaced_repetition_and_progress(user_client):
 
 def test_starter_list_import_is_idempotent(user_client):
     lists = user_client.get("/api/starter-lists").json()
-    assert {l["key"] for l in lists} >= {"ielts", "business", "phrasal", "idioms"}
-    first = user_client.post("/api/starter-lists/ielts/import").json()
+    assert [l["name"] for l in lists] == ["Vocabulary", "Phrasal Verbs", "Idioms", "Casual"]
+    first = user_client.post("/api/starter-lists/vocabulary/import").json()
     assert first["added"] == first["total"] > 0
-    again = user_client.post("/api/starter-lists/ielts/import").json()
+    again = user_client.post("/api/starter-lists/vocabulary/import").json()
     assert again["added"] == 0
     cats = user_client.get("/api/categories").json()
-    assert cats[0]["name"] == "IELTS Essentials" and cats[0]["word_count"] == first["total"]
+    assert cats[0]["name"] == "Vocabulary" and cats[0]["word_count"] == first["total"]
+
+
+def test_renamed_starter_list_reuses_the_old_category(user_client):
+    """Someone who added "IELTS Essentials" before it became "Vocabulary" gets no duplicate."""
+    old = user_client.post("/api/categories", json={"name": "IELTS Essentials"}).json()
+    user_client.post("/api/words", json={"text": "mitigate", "meaning": "reduce", "category_ids": [old["id"]]})
+    r = user_client.post("/api/starter-lists/vocabulary/import").json()
+    assert r["category_id"] == old["id"] and r["added"] == r["total"] - 1
+    cats = user_client.get("/api/categories").json()
+    assert [c["name"] for c in cats] == ["Vocabulary"]
+
+
+def test_starter_list_keeps_a_name_the_user_chose(user_client):
+    r = user_client.post("/api/starter-lists/idioms/import").json()
+    user_client.patch(f"/api/categories/{r['category_id']}", json={"name": "My idioms"})
+    again = user_client.post("/api/starter-lists/idioms/import").json()
+    assert again["category_id"] == r["category_id"] and again["added"] == 0
+    assert [c["name"] for c in user_client.get("/api/categories").json()] == ["My idioms"]
 
 
 def test_admin_stats_requires_admin(client):

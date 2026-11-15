@@ -76,6 +76,9 @@ class Category(Base):
     name: Mapped[str] = mapped_column(String(60))
     color: Mapped[str] = mapped_column(String(9), default="#4F46E5")
     notify: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Which starter list this category came from (e.g. "vocabulary"), so renaming a list
+    # never creates duplicates. Empty for categories the user created.
+    starter_key: Mapped[str | None] = mapped_column(String(40), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     user: Mapped[User] = relationship(back_populates="categories")
