@@ -1,5 +1,8 @@
 name: Send notifications
 
+# Backup scheduler. When UptimeRobot calls /api/tasks/send-notifications (recommended),
+# disable this workflow in the Actions tab so reminders are not sent twice.
+
 # Runs the scheduler every 15 minutes. Each user's own settings (frequency,
 # hours, days, time zone, pause, daily limit) decide who actually gets a word.
 on:
