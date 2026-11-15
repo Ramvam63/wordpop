@@ -503,8 +503,6 @@ screens["/settings"] = async () => {
       <div><label>Days</label><div class="days">${dayNames.map((d, i) => `<button type="button" class="chip" data-day="${i}" aria-pressed="${s.active_days.includes(String(i))}">${d}</button>`).join("")}</div></div>
       <div><label for="limit">Maximum per day</label><select id="limit">${[3, 5, 8, 10, 15, 20, 30].concat(s.daily_limit).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b)
         .map((v) => `<option ${v === s.daily_limit ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-      <div class="row between"><div class="grow"><b>Quiz mode</b><br /><span class="small muted">Show only the word in the notification, so you try to remember the meaning first.</span></div>
-        <label class="switch"><input type="checkbox" id="quizmode" ${s.quiz_notifications ? "checked" : ""} aria-label="Quiz mode" /><span></span></label></div>
       <div><label for="tz">Time zone</label><select id="tz">${zones.map((z) => `<option ${z === s.timezone ? "selected" : ""}>${esc(z)}</option>`).join("")}</select></div>
       <p class="error" id="set-err" hidden></p>
       <button class="block" id="save-settings">Save</button>
@@ -537,7 +535,7 @@ screens["/settings"] = async () => {
       await api("/api/me/settings", { method: "PUT", body: {
         notify_every_minutes: Number(document.getElementById("every").value), active_start_hour: start, active_end_hour: end,
         active_days: pressedIds($view, "day").sort().join(""), daily_limit: Number(document.getElementById("limit").value),
-        quiz_notifications: document.getElementById("quizmode").checked, timezone: document.getElementById("tz").value } });
+        timezone: document.getElementById("tz").value } });
       toast("Settings saved ✓");
     } catch (e) { err.textContent = e.message; err.hidden = false; }
   };

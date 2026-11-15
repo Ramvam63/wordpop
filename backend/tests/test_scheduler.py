@@ -58,10 +58,13 @@ def test_spaced_repetition_boxes():
     assert w.box == 0 and w.due_at == now + INTERVALS[0]
 
 
-def test_quiz_notification_hides_meaning():
-    w = Word(id=1, text="brave", meaning="not afraid", example="", phonetic="")
-    assert "not afraid" in build_payload(make_user(), w)["body"]
-    assert "not afraid" not in build_payload(make_user(quiz_notifications=True), w)["body"]
+def test_notification_shows_the_word_but_not_the_meaning():
+    w = Word(id=1, text="brave", meaning="not afraid", example="be brave", phonetic="/breɪv/")
+    p = build_payload(make_user(), w)
+    assert p["title"] == "🟠 brave"
+    assert "not afraid" not in p["body"] and "be brave" not in p["body"]
+    assert p["body"].startswith("/breɪv/")
+    assert p["url"] == "/#/quiz?word=1"
 
 
 def _seed(db, **user_kw):
@@ -86,7 +89,7 @@ def test_run_once_sends_only_words_from_enabled_categories(session_factory):
         _seed(db)
         stats = run_once(db, now=WED_10AM_TORONTO, sender=lambda sub, p: sent.append(p))
         assert stats["sent"] == 1
-        assert sent[0]["title"].startswith("📒 ielts")  # the more overdue "muted" word is skipped
+        assert sent[0]["title"].startswith("🟠 ielts")  # the more overdue "muted" word is skipped
         user = db.query(User).one()
         assert user.notified_today == 1
 

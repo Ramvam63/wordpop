@@ -20,15 +20,12 @@ Sender = Callable[[PushSubscription, dict], None]
 
 
 def build_payload(user: User, word: Word) -> dict:
-    title = f"📒 {word.text}"
+    """The notification shows only the word, so the learner tries to recall the meaning
+    first; tapping it opens the quiz card for that word with the meaning."""
+    title = f"🟠 {word.text}"  # keep the title to the word itself so it stands out
+    body = "Do you remember what it means? Tap to check."
     if word.phonetic:
-        title += f"  {word.phonetic}"
-    if user.quiz_notifications:
-        body = "Do you remember what it means? Tap to check."
-    else:
-        body = word.meaning
-        if word.example:
-            body += f"\n\ne.g. {word.example}"
+        body = f"{word.phonetic}  ·  {body}"
     return {"title": title, "body": body, "url": f"/#/quiz?word={word.id}", "tag": f"word-{word.id}"}
 
 
