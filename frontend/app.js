@@ -560,8 +560,8 @@ function plusPanel(b) {
   }
   if (!b.trial_started) {
     return `<div class="plus-box"><p>🎁 <b>Try the natural voices free for ${b.trial_days} days.</b>
-      <span class="small muted">The trial starts the first time you tap Listen. After that, WordPop Plus is
-      ${esc(b.prices.monthly)} a month or ${esc(b.prices.yearly)} a year. Tap ▶ to hear each voice.</span></p></div>`;
+      <span class="small muted">The trial starts the first time you tap Listen – no card needed. Tap ▶ to hear each voice.</span></p>
+      <p class="small muted">Already sure? Get WordPop Plus now:</p>${buy}</div>`;
   }
   return `<div class="plus-box"><p>Your free trial has ended. <b>Get WordPop Plus</b> to keep the natural voices –
     until then, your phone's voice reads your entries.</p>${buy}
