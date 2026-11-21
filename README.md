@@ -67,6 +67,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 
 - **Any language and script** – Chinese, Hindi, French, Spanish, Japanese, Arabic… Right-to-left text displays correctly too.
 - **Categories** keep each kind apart (e.g. *French*, *Chinese*, *Poems*, *Math*, *Motivation*), and you choose which ones send reminders.
+- **Share to WordPop** – select text in any app, tap Share → WordPop and it opens ready to save (Android, Chrome/Edge on computers; an iPhone Shortcut does the same)
 - **CSV import & export** – back up your entries or add hundreds at once from Excel, Google Sheets or Numbers (UTF-8 and older Excel files, commas, semicolons or tabs; duplicates skipped)
 - **Automatic meanings** are available for English words and phrases; for everything else you write your own meaning or note.
 

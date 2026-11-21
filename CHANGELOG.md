@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 ### Added
+- **Share to WordPop**: the installed app appears in the Share menu (Android, Chrome/Edge on computers) – shared text opens in "Add" ready to save, with links and quote marks removed, even if you have to sign in first. iPhone: Settings → Add from other apps explains a one-time Shortcut. Long-pressing the app icon offers "Add a word"
 - **CSV import & export** (Settings → Import & export): export all entries or one category; import a spreadsheet with text, meaning, example and categories – header names like "word" or "translation" are understood, commas/semicolons/tabs and older Excel encodings work, duplicates are skipped, missing categories are created, and problem lines are listed. A sample file can be downloaded
 - "No category" switch on the Categories page: entries without a category can now be switched off too, so turning on a single category sends only that category's entries (before, uncategorized entries were always sent)
 - Only the entry text is required when adding a word, phrase or quote; "Meaning or note" and "Example" are optional (English entries are still filled from the dictionary when possible)
