@@ -53,17 +53,29 @@ def checkout(data: CheckoutIn, user: User = Depends(get_current_user), db: Sessi
         user.stripe_customer_id = customer["id"]
         db.commit()
 
+    embedded = bool(get_settings().stripe_publishable_key)
+
     def open_checkout():
-        return client.v1.checkout.sessions.create({
+        params = {
             "mode": "subscription",
             "customer": user.stripe_customer_id,
             "client_reference_id": str(user.id),
             "line_items": [{"price": billing.price_id(data.plan), "quantity": 1}],
             "subscription_data": {"metadata": {"user_id": str(user.id)}},
             "allow_promotion_codes": True,
-            "success_url": f"{app_url}/#/settings?plus=success",
-            "cancel_url": f"{app_url}/#/settings?plus=cancel",
-        })
+        }
+        if embedded:  # the payment form opens in a box inside WordPop
+            params.update({
+                "ui_mode": "embedded",
+                "redirect_on_completion": "if_required",
+                "return_url": f"{app_url}/#/settings?plus=success",
+            })
+        else:  # Stripe's own full payment page
+            params.update({
+                "success_url": f"{app_url}/#/settings?plus=success",
+                "cancel_url": f"{app_url}/#/settings?plus=cancel",
+            })
+        return client.v1.checkout.sessions.create(params)
 
     try:
         if not user.stripe_customer_id:
@@ -84,6 +96,8 @@ def checkout(data: CheckoutIn, user: User = Depends(get_current_user), db: Sessi
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, "Couldn't open the payment page - please try again"
         ) from exc
+    if embedded:
+        return {"client_secret": session["client_secret"]}
     return {"url": session["url"]}
 
 

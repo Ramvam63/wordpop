@@ -30,7 +30,7 @@ class FakeStripe:
         class CheckoutSessions:
             def create(self, params):
                 fake.calls.append(("checkout", params))
-                return {"url": "https://checkout.stripe.test/s1"}
+                return {"url": "https://checkout.stripe.test/s1", "client_secret": "cs_test_secret"}
 
         class PortalSessions:
             def create(self, params):
@@ -205,3 +205,20 @@ def test_other_stripe_errors_are_reported(user_client, stripe_on):
     stripe_on.v1.checkout.sessions.create = fail
     r = user_client.post("/api/billing/checkout", json={"plan": "monthly"})
     assert r.status_code == 502 and "payment page" in r.json()["detail"]
+
+
+def test_embedded_checkout_when_publishable_key_is_set(user_client, stripe_on, monkeypatch):
+    monkeypatch.setattr(get_settings(), "stripe_publishable_key", "pk_test_x")
+    assert user_client.get("/api/billing/status").json()["publishable_key"] == "pk_test_x"
+    r = user_client.post("/api/billing/checkout", json={"plan": "monthly"}).json()
+    assert r == {"client_secret": "cs_test_secret"}
+    params = stripe_on.calls[-1][1]
+    assert params["ui_mode"] == "embedded" and params["redirect_on_completion"] == "if_required"
+    assert params["return_url"].endswith("/#/settings?plus=success") and "success_url" not in params
+
+
+def test_hosted_checkout_without_publishable_key(user_client, stripe_on):
+    assert user_client.get("/api/billing/status").json()["publishable_key"] == ""
+    r = user_client.post("/api/billing/checkout", json={"plan": "monthly"}).json()
+    assert r["url"].startswith("https://checkout.stripe.test")
+    assert "ui_mode" not in stripe_on.calls[-1][1]
