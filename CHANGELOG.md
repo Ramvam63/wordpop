@@ -16,6 +16,9 @@
 - Canadian English voice: English entries and examples are read by a Canadian voice when the device has one (natural-sounding voices first, then American); a new **Voice** setting lets each device pick any English voice, and dictionary recordings prefer the North American one
 - **Select and delete several entries at once** on the Words page: Select → tick entries (or "Select all", which follows the current search and category) → Delete
 - **Natural voices**: four human-sounding English voices made on the server with Azure AI Speech – Clara (Canadian woman, default), Liam (Canadian man), Ava (American woman) and Andrew (American man). Pick one in Settings → Voice (▶ plays a sample); it reads entries and examples on every device. Each recording is made once and stored, so repeat listens are instant and free. The phone's own voice remains available and is the automatic fallback
+
+### Fixed
+- WordPop Plus checkout: if the saved Stripe customer no longer exists (e.g. after changing the Stripe key, or moving from test to live), a new one is created automatically instead of failing
 - Selecting entries: tapping the checkbox itself now ticks it (before, only tapping the entry's text worked)
 - App updates now show on the first open after a deploy: the new version installs fresh files (not copies from the browser cache), the app reloads itself once the update is ready (never while you are typing), and it checks for updates whenever it is brought back to the screen
 

@@ -168,3 +168,40 @@ def test_deleting_account_cancels_subscription(user_client, stripe_on, session_f
     stripe_on.subscriptions_store["sub_1"] = subscription()
     assert user_client.delete("/api/auth/me").status_code == 204
     assert ("cancel", "sub_1") in stripe_on.calls
+
+
+def test_checkout_replaces_a_customer_stripe_no_longer_knows(user_client, stripe_on, session_factory):
+    """A customer saved with an earlier key (or in test mode) doesn't exist for the new key."""
+    import stripe
+
+    with session_factory() as db:
+        user = db.query(User).one()
+        user.stripe_customer_id = "cus_from_old_key"
+        db.commit()
+
+    sessions = stripe_on.v1.checkout.sessions
+    original = sessions.create
+
+    def create(params):
+        if params["customer"] == "cus_from_old_key":
+            raise stripe.InvalidRequestError("No such customer: 'cus_from_old_key'", param="customer",
+                                             code="resource_missing")
+        return original(params)
+
+    sessions.create = create
+    r = user_client.post("/api/billing/checkout", json={"plan": "monthly"})
+    assert r.status_code == 200 and r.json()["url"].startswith("https://checkout.stripe.test")
+    with session_factory() as db:
+        assert db.query(User).one().stripe_customer_id == "cus_123"
+
+
+def test_other_stripe_errors_are_reported(user_client, stripe_on):
+    import stripe
+
+    def fail(params):
+        raise stripe.InvalidRequestError("No such price: 'prod_X'", param="line_items[0][price]",
+                                         code="resource_missing")
+
+    stripe_on.v1.checkout.sessions.create = fail
+    r = user_client.post("/api/billing/checkout", json={"plan": "monthly"})
+    assert r.status_code == 502 and "payment page" in r.json()["detail"]
