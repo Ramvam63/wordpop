@@ -41,6 +41,8 @@ VOICES = {
     )
 }
 DEFAULT_VOICE = "ca-female"
+# The sample in Settings is always free, so everyone can hear what the voices sound like.
+SAMPLE_TEXT = "Hi! This is how your words will sound."
 MAX_CHARS = 600
 
 

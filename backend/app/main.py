@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .config import get_settings
 from .db import init_db
-from .routers import admin, auth, categories, me, push, quiz, starter, tasks, transfer, tts, words
+from .routers import admin, auth, billing, categories, me, push, quiz, starter, tasks, transfer, tts, words
 
 # Show WordPop's own messages (scheduler runs, push errors) in the server logs.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WordPop API", version=__version__, lifespan=lifespan)
 
-for r in (auth, transfer, words, categories, me, quiz, push, starter, admin, tasks, tts):
+for r in (auth, transfer, words, categories, me, quiz, push, starter, admin, tasks, tts, billing):
     app.include_router(r.router)
 
 

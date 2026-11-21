@@ -219,3 +219,8 @@ def test_manifest_offers_share_to_wordpop(client):
     assert m["share_target"]["action"] == "/" and m["share_target"]["method"] == "GET"
     assert m["share_target"]["params"]["text"] == "share_text"
     assert client.get("/?share_text=serendipity").status_code == 200  # the app opens for a share
+
+
+def test_terms_and_privacy_pages(client):
+    assert "WordPop Plus" in client.get("/terms.html").text
+    assert "Stripe" in client.get("/privacy.html").text

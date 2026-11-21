@@ -87,6 +87,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
 - **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
 - **Natural voices** – Clara and Liam (Canadian), Ava and Andrew (American) read entries and examples on every device (Azure AI Speech, each recording made once and stored)
+- **WordPop Plus** – the natural voices as a subscription (CA$0.99/month or CA$9.99/year) with a 7-day free trial, Stripe Checkout and a self-service Customer Portal
 - **Listen to every entry, pronunciation for words** – the phone's own voice reads any entry in its language; single English words get an IPA line and Chinese words get pinyin, worked out offline
 - **Categories** – an entry can belong to several; switch reminders on or off per category, plus a **No category** switch for entries you haven't filed
 - **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
@@ -193,6 +194,10 @@ ruff check .
 4. **Email** (optional) – add a Gmail App Password as `SMTP_PASSWORD` to enable "Forgot password?" emails.
 5. **Natural voices** (optional) – create a free (F0) **Speech service** in the [Azure portal](https://portal.azure.com)
    and add its key and region as `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Without them the app uses the phone's voices.
+6. **WordPop Plus** (optional) – to charge for the natural voices, create a [Stripe](https://stripe.com) product with
+   monthly and yearly prices, a webhook to `/api/billing/webhook` (events `checkout.session.completed` and
+   `customer.subscription.created/updated/deleted`), turn on the Customer Portal, and add `STRIPE_SECRET_KEY`,
+   `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_YEARLY`. Without them the voices are free.
 
 > The *Send notifications* GitHub Actions workflow is an optional backup scheduler; it is disabled when
 > UptimeRobot is used, so reminders are never sent twice.
@@ -209,6 +214,7 @@ Interactive documentation: **[wordpopapp.onrender.com/docs](https://wordpopapp.o
 | Quiz | `GET /api/quiz/next` · `POST /api/quiz/answer` |
 | Settings & progress | `GET/PUT /api/me/settings` · `POST /api/me/pause` · `GET /api/me/progress` |
 | Voices | `GET /api/tts/voices` · `GET /api/tts?text=…&voice=ca-female` (MP3, cached) |
+| WordPop Plus | `GET /api/billing/status` · `POST /api/billing/checkout` · `POST /api/billing/portal` · `POST /api/billing/webhook` (Stripe) |
 | Push | `GET /api/push/public-key` · `POST /api/push/subscribe` · `unsubscribe` · `test` |
 | Starter lists | `GET /api/starter-lists` · `POST /api/starter-lists/{key}/import` |
 | Tasks | `GET /api/tasks/send-notifications?key=…` (called by UptimeRobot) |
