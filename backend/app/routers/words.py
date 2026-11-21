@@ -36,7 +36,11 @@ def list_words(
         stmt = stmt.where(Word.categories.any(Category.id == category_id))
     if q:
         stmt = stmt.where(Word.text.ilike(f"%{q.strip()}%"))
-    return list(db.scalars(stmt))
+    words = list(db.scalars(stmt))
+    # Entries saved before offline pronunciation existed get their line now (fast, no network).
+    if sum(w.fill_local_phonetic() for w in words):
+        db.commit()
+    return words
 
 
 @router.post("/words", response_model=WordOut, status_code=status.HTTP_201_CREATED)
@@ -55,11 +59,8 @@ def create_word(data: WordIn, user: User = Depends(get_current_user), db: Sessio
             meaning = meaning or found["meaning"]
             example = example or found["example"]
             phonetic, audio = found["phonetic"], found["audio_url"]
-    if not meaning:
-        raise HTTPException(
-            422,
-            "Couldn't find a meaning automatically - please type one",
-        )
+    # Meaning and example are optional: if the look-up finds nothing, the entry is
+    # saved with just its text (e.g. a quote, a poem line, or any non-English text).
 
     word = Word(
         user_id=user.id,
@@ -70,6 +71,7 @@ def create_word(data: WordIn, user: User = Depends(get_current_user), db: Sessio
         audio_url=audio,
         categories=user_categories(db, user, data.category_ids),
     )
+    word.fill_local_phonetic()  # phrases, sentences, Chinese... when the dictionary had none
     db.add(word)
     db.commit()
     db.refresh(word)
@@ -84,14 +86,19 @@ def update_word(
     db: Session = Depends(get_db),
 ):
     word = _get_word(db, user, word_id)
-    if data.text is not None:
+    if data.text is not None and data.text.strip() != word.text:
         word.text = data.text.strip()
+        # The old pronunciation and recording belonged to the old text.
+        found = dictionary.lookup(word.text)
+        word.phonetic = found["phonetic"] if found else ""
+        word.audio_url = found["audio_url"] if found else ""
     if data.meaning is not None:
         word.meaning = data.meaning.strip()
     if data.example is not None:
         word.example = data.example.strip()
     if data.category_ids is not None:
         word.categories = user_categories(db, user, data.category_ids)
+    word.fill_local_phonetic()
     db.commit()
     db.refresh(word)
     return word

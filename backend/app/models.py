@@ -16,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
+from .pronunciation import language_of, local_phonetic
 
 
 def utcnow() -> datetime:
@@ -51,6 +52,9 @@ class User(Base):
     active_days: Mapped[str] = mapped_column(String(7), default="0123456")  # Mon=0 .. Sun=6
     daily_limit: Mapped[int] = mapped_column(Integer, default=10)
     quiz_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Reminders for entries that have no category. NULL (accounts made before this
+    # setting existed) counts as on.
+    notify_uncategorized: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     paused_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Scheduler bookkeeping
@@ -96,7 +100,7 @@ class Word(Base):
     text: Mapped[str] = mapped_column(Text)  # a word, phrase, sentence, quote or short poem
     meaning: Mapped[str] = mapped_column(Text)
     example: Mapped[str] = mapped_column(Text, default="")
-    phonetic: Mapped[str] = mapped_column(String(120), default="")
+    phonetic: Mapped[str] = mapped_column(Text, default="")  # IPA, or pinyin for Chinese
     audio_url: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -114,6 +118,18 @@ class Word(Base):
     categories: Mapped[list[Category]] = relationship(
         secondary=word_categories, back_populates="words"
     )
+
+    @property
+    def lang(self) -> str:
+        """Best guess of the entry's language (BCP-47), for text-to-speech."""
+        return language_of(self.text, (c.name for c in self.categories))
+
+    def fill_local_phonetic(self) -> bool:
+        """Give the entry an offline pronunciation line if it has none. True if one was added."""
+        if self.phonetic:
+            return False
+        self.phonetic = local_phonetic(self.text, self.lang)
+        return bool(self.phonetic)
 
 
 class PushSubscription(Base):

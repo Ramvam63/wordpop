@@ -84,12 +84,13 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Reminders on your phone** – each notification shows only your entry, so you try to recall the meaning; tap it to check
 - **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
 - **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
-- **Categories** – an entry can belong to several; switch reminders on or off per category
+- **Listen and pronunciation for every entry** – the phone's own voice reads any entry in its language; English entries get an IPA line and Chinese gets pinyin, worked out offline
+- **Categories** – an entry can belong to several; switch reminders on or off per category, plus a **No category** switch for entries you haven't filed
 - **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
 - **Your own schedule** – how often, active hours, active days, daily limit, pause for 3 hours / a day / a week, and your own time zone
 - **Spaced-repetition quiz** – words you forget come back sooner; words you know are spaced out
 - **Progress page** – streak, mastered words, accuracy, 7-day activity and hardest words
-- **11 starter lists** for a useful first day – English (Vocabulary, Phrasal Verbs, Idioms, Casual), Motivation, Math Formulas, classic Poems, and French, Spanish, Chinese and Hindi basics
+- **11 ready-made categories** added with one tap – English (Vocabulary, Phrasal Verbs, Idioms, Casual), Motivation, Math Formulas, Poems, and French, Spanish, Chinese and Hindi basics. They start empty: everyone builds their list from their own words
 - **Installable app (PWA)** – Home Screen icon, opens instantly from cache, step-by-step iPhone install guide
 - **Accounts & security** – bcrypt-hashed passwords, HTTP-only session cookies, **forgot-password emails** with one-time links (stored hashed, rate-limited), reset signs out other devices
 - **Privacy** – delete your account and all data in one tap

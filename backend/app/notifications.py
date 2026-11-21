@@ -24,7 +24,7 @@ def build_payload(user: User, word: Word) -> dict:
     first; tapping it opens the quiz card for that word with the meaning."""
     title = f"◆ {word.text}"  # keep the title to the word itself so it stands out
     body = "Do you remember what it means? Tap to check."
-    if word.phonetic:
+    if word.phonetic and len(word.phonetic) <= 60:  # a sentence's IPA is too long for a notification
         body = f"{word.phonetic}  ·  {body}"
     return {"title": title, "body": body, "url": f"/#/quiz?word={word.id}", "tag": f"word-{word.id}"}
 

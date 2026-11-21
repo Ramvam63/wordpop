@@ -57,8 +57,8 @@ class CategoryOut(BaseModel):
 
 class WordIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
-    meaning: str = ""  # left blank -> auto-filled from the dictionary
-    example: str = ""
+    meaning: str = ""  # optional; left blank -> auto-filled from the dictionary when possible
+    example: str = ""  # optional
     category_ids: list[int] = []
 
 
@@ -84,6 +84,7 @@ class WordOut(BaseModel):
     example: str
     phonetic: str
     audio_url: str
+    lang: str = "en-US"  # for the Listen button (browser text-to-speech)
     box: int
     due_at: datetime
     times_correct: int
@@ -101,7 +102,13 @@ class SettingsOut(BaseModel):
     active_days: str
     daily_limit: int
     quiz_notifications: bool
+    notify_uncategorized: bool = True
     paused_until: datetime | None
+
+    @field_validator("notify_uncategorized", mode="before")
+    @classmethod
+    def null_means_on(cls, v: bool | None) -> bool:
+        return v is not False  # accounts made before this setting existed have NULL
 
 
 class SettingsIn(BaseModel):
@@ -112,6 +119,7 @@ class SettingsIn(BaseModel):
     active_days: str | None = Field(default=None, pattern=r"^[0-6]{0,7}$")
     daily_limit: int | None = Field(default=None, ge=1, le=50)
     quiz_notifications: bool | None = None
+    notify_uncategorized: bool | None = None
 
     @field_validator("timezone")
     @classmethod

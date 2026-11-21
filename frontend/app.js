@@ -234,8 +234,8 @@ screens["/welcome"] = async () => {
   $view.innerHTML = `
     <h1>Let's get you started 👋</h1>
     <div class="card stack">
-      <h2>Pick a starter list</h2>
-      <p class="muted small">Get useful words right away. You can remove any word later, and add your own anytime.</p>
+      <h2>Pick some categories</h2>
+      <p class="muted small">Categories keep your entries organised. They start empty – you add your own words, phrases and quotes. You can create more anytime.</p>
       ${starterListHtml(lists)}
     </div>
     <a class="btn block" href="#/words">Continue</a>`;
@@ -245,7 +245,7 @@ screens["/welcome"] = async () => {
 function starterListHtml(lists) {
   return lists.map((l) => `
     <div class="row between">
-      <div class="grow"><b>${esc(l.name)}</b> <span class="muted small">· ${l.count} items</span><br />
+      <div class="grow"><span class="dot" style="background:${esc(l.color)}"></span> <b>${esc(l.name)}</b><br />
         <span class="small muted">${esc(l.description)}</span></div>
       <button class="secondary small" data-import="${esc(l.key)}">Add</button>
     </div>`).join("");
@@ -255,7 +255,7 @@ function bindStarterButtons() {
     b.disabled = true;
     try {
       const r = await api(`/api/starter-lists/${b.dataset.import}/import`, { method: "POST" });
-      b.textContent = "Added ✓"; toast(`${r.added} words added`); await loadCategories();
+      b.textContent = "Added ✓"; toast(r.created ? `“${r.name}” category added` : `You already have “${r.name}”`); await loadCategories();
     } catch (e) { b.disabled = false; toast(e.message); }
   }));
 }
@@ -268,11 +268,11 @@ screens["/words"] = async ({ params }) => {
     <div class="card">
       <h2>Add a word, phrase or quote</h2>
       <form id="add" class="stack">
-        <div class="row" style="align-items:flex-start"><textarea id="w-text" class="grow" rows="2" maxlength="500" placeholder="A word, phrase, sentence, quote or short poem – in any language" required autocomplete="off" autocapitalize="none" style="width:auto;min-height:48px"></textarea>
+        <div class="row" style="align-items:flex-start"><textarea id="w-text" class="grow" rows="2" maxlength="500" placeholder="A word, phrase, sentence, quote or short poem – in any language" required autocomplete="off" autocapitalize="sentences" style="width:auto;min-height:48px"></textarea>
           <button type="button" class="secondary" id="lookup" title="English dictionary">Look up</button></div>
-        <div><label for="w-meaning">Meaning or note <span class="muted small">(English words can be filled automatically)</span></label>
+        <div><label for="w-meaning">Meaning or note <span class="muted small">(optional – English words can be filled automatically)</span></label>
           <textarea id="w-meaning" rows="2"></textarea></div>
-        <div><label for="w-example">Example</label><input id="w-example" /></div>
+        <div><label for="w-example">Example <span class="muted small">(optional)</span></label><input id="w-example" /></div>
         <div><label>Categories</label>${catChips([], "newcat")}</div>
         <p class="error" id="add-err" hidden></p>
         <button class="block" type="submit">Save word</button>
@@ -287,7 +287,7 @@ screens["/words"] = async ({ params }) => {
           <span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</a>`).join("")}
       </div>
       <input id="search" placeholder="Search…" type="search" style="margin-bottom:8px" />
-      <div id="list">${words.length ? words.map(wordItem).join("") : `<p class="muted center">No words yet. Add your first one above, or pick a <a href="#/settings">starter list</a>.</p>`}</div>
+      <div id="list">${words.length ? words.map(wordItem).join("") : `<p class="muted center">No words yet. Add your first one above.</p>`}</div>
     </div>`;
 
   bindToggleChips($view, "newcat");
@@ -326,16 +326,43 @@ screens["/words"] = async ({ params }) => {
 
 function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
 
+// ---------- listening ----------
+// A recorded pronunciation (English dictionary words) when there is one; otherwise the
+// phone's own text-to-speech voice for the entry's language - so every entry can be heard.
+const canSpeak = "speechSynthesis" in window;
+function speak(text, lang) {
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang || "en-US";
+  const base = u.lang.split("-")[0];
+  const voice = synth.getVoices().find((v) => v.lang === u.lang) || synth.getVoices().find((v) => v.lang.startsWith(base));
+  if (voice) u.voice = voice;
+  u.rate = 0.9;
+  synth.speak(u);
+}
+function exampleHtml(w, attr) {
+  if (!w.example) return "";
+  const btn = canSpeak ? ` <button class="ghost small say" ${attr} aria-label="Listen to the example">🔊</button>` : "";
+  return `<i dir="auto">“${esc(w.example)}”</i>${btn}`;
+}
+function listen(w) {
+  if (w.audio_url) return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  if (canSpeak) speak(w.text, w.lang);
+}
+const canListen = (w) => Boolean(w.audio_url) || canSpeak;
+if (canSpeak) speechSynthesis.getVoices(); // starts loading the voice list early (Chrome)
+
 function wordItem(w) {
   return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
-    <summary><span><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small">${esc(w.phonetic)}</span></span>
+    <summary><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
       <span class="box-badge">${boxLabel(w.box)}</span></summary>
-    <div class="stack" style="margin-top:8px">
-      <div class="keep-lines" dir="auto">${esc(w.meaning)}</div>
-      ${w.example ? `<div class="muted"><i>“${esc(w.example)}”</i></div>` : ""}
+    <div class="stack card-back">
+      ${w.meaning ? `<div class="keep-lines" dir="auto">${esc(w.meaning)}</div>` : ""}
+      ${w.example ? `<div class="muted">${exampleHtml(w, `data-say-example="${w.id}"`)}</div>` : ""}
       ${w.categories.length ? `<div class="chips">${w.categories.map((c) => `<span class="chip"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>`).join("")}</div>` : ""}
-      <div class="row">
-        ${w.audio_url ? `<button class="ghost small" data-audio="${esc(w.audio_url)}">🔊 Listen</button>` : ""}
+      <div class="row card-actions">
+        ${canListen(w) ? `<button class="ghost small" data-listen="${w.id}">🔊 Listen</button>` : ""}
         <button class="ghost small" data-edit="${w.id}">Edit</button>
         <button class="danger small" data-del="${w.id}">Delete</button>
       </div>
@@ -343,7 +370,10 @@ function wordItem(w) {
 }
 
 function bindWordItems(words, params) {
-  $view.querySelectorAll("[data-audio]").forEach((b) => (b.onclick = () => new Audio(b.dataset.audio).play()));
+  $view.querySelectorAll("[data-listen]").forEach((b) => (b.onclick = () => listen(words.find((x) => x.id === Number(b.dataset.listen)))));
+  $view.querySelectorAll("[data-say-example]").forEach((b) => (b.onclick = () => {
+    const w = words.find((x) => x.id === Number(b.dataset.sayExample)); speak(w.example, w.lang);
+  }));
   $view.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     if (!confirmInline(b)) return;
     await api(`/api/words/${b.dataset.del}`, { method: "DELETE" }); toast("Deleted"); screens["/words"]({ params });
@@ -378,7 +408,7 @@ function confirmInline(btn) {
 }
 
 screens["/categories"] = async () => {
-  await loadCategories();
+  const [settings] = await Promise.all([api("/api/me/settings"), loadCategories()]);
   const colors = ["#4F46E5", "#DC2626", "#16A34A", "#D97706", "#0891B2", "#DB2777", "#7C3AED", "#475569"];
   $view.innerHTML = `
     <h1>Categories</h1>
@@ -392,7 +422,11 @@ screens["/categories"] = async () => {
     </div>
     <div class="card">
       <h2>Notifications per category</h2>
-      <p class="small muted">Turn a category off to stop getting reminders for its entries. Entries without a category are always included.</p>
+      <p class="small muted">Only entries in a switched-on category are sent as reminders. “No category” covers entries you haven't put in any category.</p>
+      <div class="row between word-item">
+        <span class="grow row"><span class="dot" style="background:transparent;border:1px dashed currentColor"></span><b>No category</b></span>
+        <label class="switch" title="Notifications"><input type="checkbox" id="notify-uncategorized" ${settings.notify_uncategorized ? "checked" : ""} aria-label="Notifications for entries without a category" /><span></span></label>
+      </div>
       ${state.categories.length ? state.categories.map((c) => `
         <div class="row between word-item">
           <a class="grow row" href="#/words?category=${c.id}" style="color:inherit;text-decoration:none">
@@ -410,6 +444,10 @@ screens["/categories"] = async () => {
     const color = $view.querySelector('[data-color][aria-pressed="true"]').dataset.color;
     try { await api("/api/categories", { method: "POST", body: { name: document.getElementById("cat-name").value, color } }); toast("Category created"); screens["/categories"](); }
     catch (ex) { toast(ex.message); }
+  };
+  document.getElementById("notify-uncategorized").onchange = async (e) => {
+    await api("/api/me/settings", { method: "PUT", body: { notify_uncategorized: e.target.checked } });
+    toast(e.target.checked ? "Reminders on for entries without a category" : "Reminders off for entries without a category");
   };
   $view.querySelectorAll("[data-notify]").forEach((i) => (i.onchange = async () => {
     await api(`/api/categories/${i.dataset.notify}`, { method: "PATCH", body: { notify: i.checked } });
@@ -445,10 +483,10 @@ screens["/quiz"] = async ({ params }) => {
       <div class="card quiz-card">
         <p class="muted small">${done ? `${done} reviewed this session · ` : ""}${boxLabel(w.box)}</p>
         <p class="quiz-word${w.text.length > 40 ? " long" : ""}" dir="auto">${esc(w.text)}</p>
-        <p class="muted">${esc(w.phonetic)} ${w.audio_url ? `<button class="ghost small" id="listen">🔊</button>` : ""}</p>
+        <p class="muted">${esc(w.phonetic)} ${canListen(w) ? `<button class="ghost small" id="listen" aria-label="Listen">🔊</button>` : ""}</p>
         <div id="answer" hidden>
-          <p class="quiz-meaning" dir="auto">${esc(w.meaning)}</p>
-          ${w.example ? `<p class="muted"><i>“${esc(w.example)}”</i></p>` : ""}
+          ${w.meaning ? `<p class="quiz-meaning" dir="auto">${esc(w.meaning)}</p>` : `<p class="muted small">No meaning or note added – did you remember it? You can add one with “Edit” on the Words page.</p>`}
+          ${w.example ? `<p class="muted">${exampleHtml(w, 'id="say-example"')}</p>` : ""}
           <div class="quiz-actions">
             <button class="bad" id="forgot">✗ Forgot</button>
             <button class="good" id="knew">✓ I knew it</button>
@@ -459,7 +497,8 @@ screens["/quiz"] = async ({ params }) => {
       <p class="center small muted">Think of the meaning first, then check. Words you forget come back sooner.</p>`}`;
     document.getElementById("qcat").onchange = (e) => { category = e.target.value; lastId = null; next(); };
     if (!w) return;
-    document.getElementById("listen")?.addEventListener("click", () => new Audio(w.audio_url).play());
+    document.getElementById("listen")?.addEventListener("click", () => listen(w));
+    document.getElementById("say-example")?.addEventListener("click", () => speak(w.example, w.lang));
     document.getElementById("reveal").onclick = (e) => { e.target.hidden = true; document.getElementById("answer").hidden = false; };
     const answer = async (knew) => {
       await api("/api/quiz/answer", { method: "POST", body: { word_id: w.id, knew } });
@@ -544,7 +583,7 @@ screens["/settings"] = async () => {
       <div class="row">${paused ? `<button class="secondary" data-pause="0">Resume now</button>` :
         `<button class="ghost" data-pause="3">3 hours</button><button class="ghost" data-pause="24">1 day</button><button class="ghost" data-pause="168">1 week</button>`}</div>
     </div>
-    <div class="card stack"><h2>Starter word lists</h2>${starterListHtml(lists)}</div>
+    <div class="card stack"><h2>Ready-made categories</h2><p class="small muted">Add an empty category with one tap, then fill it with your own entries.</p>${starterListHtml(lists)}</div>
     <div class="card stack">
       <h2>Account</h2>
       <p class="small muted">Signed in as ${esc(state.user.email)}</p>

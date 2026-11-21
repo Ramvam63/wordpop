@@ -106,6 +106,32 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 .word-item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
 .word-item summary::-webkit-details-marker { display: none; }
 .word-text { font-weight: 700; white-space: pre-line; overflow-wrap: anywhere; }
+.card-back { margin-top: 8px; }
+button.say { padding: 2px 8px; margin-left: 4px; vertical-align: middle; font-style: normal; }
+
+/* An opened entry turns into a flashcard: the entry on the front, a dashed fold line,
+   then the meaning - in the amber of the app icon and the quiz card. */
+.word-item[open] {
+  position: relative; margin: 10px -8px; padding: 26px 18px 18px; border-top: 0;
+  background: var(--accent); color: var(--on-accent); border-radius: 18px; text-align: center;
+  box-shadow: 0 2px 0 var(--brown), 0 10px 24px rgba(110, 62, 0, .22);
+  animation: card-in .22s ease-out;
+}
+.word-item[open] + .word-item { border-top: 0; }
+.word-item[open] summary { flex-direction: column; align-items: center; gap: 4px; }
+.word-item[open] .word-head { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.word-item[open] .word-text { font-size: 1.6rem; font-weight: 800; line-height: 1.25; }
+.word-item[open] .phonetic { font-size: .95rem; }
+.word-item[open] .box-badge { position: absolute; top: 10px; right: 14px; }
+.word-item[open] .muted, .word-item[open] .box-badge { color: var(--brown); }
+.word-item[open] .card-back { margin-top: 16px; padding-top: 16px; border-top: 2px dashed rgba(59, 35, 0, .3); font-size: 1.05rem; }
+.word-item[open] .chips, .word-item[open] .card-actions { justify-content: center; }
+.word-item[open] .chip { background: rgba(255, 255, 255, .55); border-color: transparent; color: var(--on-accent); }
+.word-item[open] button.ghost { color: var(--on-accent); border-color: rgba(59, 35, 0, .3); background: rgba(255, 255, 255, .35); }
+.word-item[open] button.danger { color: #8A2A0C; border-color: rgba(59, 35, 0, .3); background: rgba(255, 255, 255, .35); }
+.word-item[open] input, .word-item[open] textarea { text-align: left; }
+@keyframes card-in { from { transform: scale(.97); opacity: .6; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .word-item[open] { animation: none; } }
 .keep-lines { white-space: pre-line; }
 .box-badge { font-size: .75rem; color: var(--muted); white-space: nowrap; }
 
