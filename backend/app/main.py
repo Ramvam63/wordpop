@@ -34,6 +34,18 @@ def health():
 
 
 frontend = get_settings().frontend_dir
+
+
+class AppFiles(StaticFiles):
+    """The PWA's files. "no-cache" makes browsers check for a newer version (a cheap 304
+    when nothing changed) instead of guessing, so an update is never hidden behind an old
+    copy in the browser's HTTP cache. The service worker still makes start-up instant."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("Cache-Control", "no-cache")
+        return response
+
 if frontend.exists():
 
     @app.get("/sw.js", include_in_schema=False)
@@ -45,4 +57,4 @@ if frontend.exists():
             headers={"Cache-Control": "no-cache"},
         )
 
-    app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
+    app.mount("/", AppFiles(directory=frontend, html=True), name="frontend")

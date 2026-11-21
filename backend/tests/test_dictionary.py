@@ -77,3 +77,11 @@ def test_network_errors_return_none(monkeypatch):
 
     monkeypatch.setattr(httpx, "get", broken)
     assert dictionary.lookup("curious") is None
+
+
+def test_north_american_recording_is_preferred():
+    data = [{"word": "water", "phonetics": [
+        {"audio": "https://example.com/water-uk.mp3"},
+        {"audio": "https://example.com/water-us.mp3"},
+    ], "meanings": [{"partOfSpeech": "noun", "definitions": [{"definition": "a clear liquid"}]}]}]
+    assert dictionary.parse(data)["audio_url"].endswith("water-us.mp3")

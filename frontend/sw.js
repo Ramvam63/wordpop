@@ -1,9 +1,12 @@
 // WordPop service worker: instant start from cache + push notifications.
-const CACHE = "wordpop-v6";
+const CACHE = "wordpop-v7";
 const SHELL = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: "reload" fetches fresh copies from the server, never from the browser's HTTP cache,
+  // so a new version is installed with its own files.
+  const fresh = SHELL.map((url) => new Request(url, { cache: "reload" }));
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(fresh)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {

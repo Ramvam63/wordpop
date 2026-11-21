@@ -10,6 +10,11 @@
 - Pronunciation line for every English entry, phrases and sentences included (offline IPA from the CMU Pronouncing Dictionary), and pinyin with tone marks for Chinese; existing entries get it automatically
 - Opening an entry in the list shows it as an amber flashcard: the entry on the front, a fold line, then the meaning
 
+- Canadian English voice: English entries and examples are read by a Canadian voice when the device has one (natural-sounding voices first, then American); a new **Voice** setting lets each device pick any English voice, and dictionary recordings prefer the North American one
+- **Select and delete several entries at once** on the Words page: Select → tick entries (or "Select all", which follows the current search and category) → Delete
+### Fixed
+- App updates now show on the first open after a deploy: the new version installs fresh files (not copies from the browser cache), the app reloads itself once the update is ready (never while you are typing), and it checks for updates whenever it is brought back to the screen
+
 ### Changed
 - Starter lists are now empty, ready-made categories: adding one creates the category only, with no pre-filled entries, so everyone starts with their own words. Entries already imported by existing accounts are not touched
 

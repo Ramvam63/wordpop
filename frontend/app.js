@@ -280,7 +280,13 @@ screens["/words"] = async ({ params }) => {
     </div>
     <div id="notif-ask"></div>
     <div class="card">
-      <div class="row between"><h2>Your words <span class="muted small">(${words.length})</span></h2></div>
+      <div class="row between"><h2>Your words <span class="muted small">(${words.length})</span></h2>
+        ${words.length ? `<button class="ghost small" id="select-mode" type="button">Select</button>` : ""}</div>
+      <div class="row select-bar" id="select-bar" hidden>
+        <button class="ghost small" id="select-all" type="button">Select all</button>
+        <button class="danger small" id="delete-selected" type="button" disabled>Delete</button>
+        <button class="ghost small" id="select-cancel" type="button">Cancel</button>
+      </div>
       <div class="chips scroll-x" style="margin-bottom:8px">
         <a class="chip" aria-pressed="${!filter}" href="#/words">All</a>
         ${state.categories.map((c) => `<a class="chip" aria-pressed="${String(c.id) === filter}" href="#/words?category=${c.id}">
@@ -321,24 +327,102 @@ screens["/words"] = async ({ params }) => {
     $view.querySelectorAll(".word-item").forEach((el) => (el.hidden = !el.dataset.text.includes(q)));
   };
   bindWordItems(words, params);
+  if (words.length) bindSelection(params);
   if (words.length) maybeAskForNotifications();
 };
+
+// Select several entries (or all of them) and delete them in one go.
+function bindSelection(params) {
+  const list = document.getElementById("list"), bar = document.getElementById("select-bar");
+  const modeBtn = document.getElementById("select-mode"), delBtn = document.getElementById("delete-selected");
+  const visible = () => [...list.querySelectorAll(".word-item:not([hidden]) .pick")];
+  const picked = () => [...list.querySelectorAll(".pick:checked")];
+  const update = () => {
+    const n = picked().length;
+    delBtn.disabled = n === 0; delete delBtn.dataset.armed;
+    delBtn.textContent = n ? `Delete ${n}` : "Delete";
+    const all = visible();
+    document.getElementById("select-all").textContent = all.length && all.every((c) => c.checked) ? "Select none" : "Select all";
+  };
+  const setMode = (on) => {
+    list.classList.toggle("selecting", on); bar.hidden = !on; modeBtn.hidden = on;
+    if (on) list.querySelectorAll("details[open]").forEach((d) => (d.open = false));
+    else list.querySelectorAll(".pick").forEach((c) => (c.checked = false));
+    update();
+  };
+  modeBtn.onclick = () => setMode(true);
+  document.getElementById("select-cancel").onclick = () => setMode(false);
+  document.getElementById("select-all").onclick = () => {
+    const all = visible(), check = !all.every((c) => c.checked);
+    all.forEach((c) => (c.checked = check)); update();
+  };
+  // While selecting, tapping an entry ticks it instead of opening the flashcard.
+  list.querySelectorAll(".word-item summary").forEach((s) => s.addEventListener("click", (e) => {
+    if (!list.classList.contains("selecting")) return;
+    e.preventDefault();
+    const box = s.querySelector(".pick"); if (e.target !== box) box.checked = !box.checked;
+    update();
+  }));
+  delBtn.onclick = async () => {
+    const ids = picked().map((c) => Number(c.dataset.pick));
+    if (!ids.length) return;
+    if (!delBtn.dataset.armed) {
+      delBtn.dataset.armed = "1"; delBtn.textContent = `Tap again to delete ${ids.length}`;
+      setTimeout(() => { if (delBtn.dataset.armed) update(); }, 3000);
+      return;
+    }
+    delBtn.disabled = true;
+    try {
+      const r = await api("/api/words/delete-many", { method: "POST", body: { ids } });
+      toast(`Deleted ${r.deleted} ${r.deleted === 1 ? "entry" : "entries"}`);
+      screens["/words"]({ params });
+    } catch (ex) { toast(ex.message); update(); }
+  };
+}
 
 function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
 
 // ---------- listening ----------
-// A recorded pronunciation (English dictionary words) when there is one; otherwise the
-// phone's own text-to-speech voice for the entry's language - so every entry can be heard.
+// English is read by a Canadian voice when the device has one (the most natural-sounding
+// first), or by the voice the person picked in Settings. Other languages use the device's
+// voice for that language. Voices differ per device, so the choice is kept on the device.
 const canSpeak = "speechSynthesis" in window;
+const VOICE_KEY = "wordpop.voice";
+const savedVoiceName = () => { try { return localStorage.getItem(VOICE_KEY) || ""; } catch { return ""; } };
+const voices = () => (canSpeak ? speechSynthesis.getVoices() : []);
+const norm = (lang) => (lang || "").replace("_", "-");
+const NATURAL = /natural|neural|enhanced|premium|online|google/i;
+
+// Higher is better: Canadian, then US (closest accent), then other English; natural voices first.
+function englishRank(v) {
+  const lang = norm(v.lang);
+  return (lang === "en-CA" ? 100 : lang === "en-US" ? 50 : 10) + (NATURAL.test(v.name) ? 20 : 0) + (v.default ? 1 : 0);
+}
+function englishVoices() {
+  return voices().filter((v) => norm(v.lang).startsWith("en")).sort((a, b) => englishRank(b) - englishRank(a));
+}
+function pickVoice(lang) {
+  const base = lang.split("-")[0];
+  if (base === "en") {
+    const saved = savedVoiceName() && englishVoices().find((v) => v.name === savedVoiceName());
+    return saved || englishVoices()[0];
+  }
+  const all = voices();
+  return all.find((v) => norm(v.lang) === lang && NATURAL.test(v.name)) || all.find((v) => norm(v.lang) === lang) ||
+    all.find((v) => norm(v.lang).startsWith(base));
+}
+// Speak English ourselves (instead of the dictionary's British/US recording) when a Canadian
+// voice exists or the person chose a voice.
+const preferVoiceForEnglish = () => Boolean(savedVoiceName()) || englishVoices().some((v) => norm(v.lang) === "en-CA");
+
 function speak(text, lang) {
   const synth = window.speechSynthesis;
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang || "en-US";
-  const base = u.lang.split("-")[0];
-  const voice = synth.getVoices().find((v) => v.lang === u.lang) || synth.getVoices().find((v) => v.lang.startsWith(base));
-  if (voice) u.voice = voice;
-  u.rate = 0.9;
+  const voice = pickVoice(u.lang);
+  if (voice) { u.voice = voice; u.lang = voice.lang; }
+  u.rate = 0.92;
   synth.speak(u);
 }
 function exampleHtml(w, attr) {
@@ -347,15 +431,38 @@ function exampleHtml(w, attr) {
   return `<i dir="auto">“${esc(w.example)}”</i>${btn}`;
 }
 function listen(w) {
-  if (w.audio_url) return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  const english = (w.lang || "en").startsWith("en");
+  if (w.audio_url && !(canSpeak && english && preferVoiceForEnglish())) {
+    return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  }
   if (canSpeak) speak(w.text, w.lang);
 }
 const canListen = (w) => Boolean(w.audio_url) || canSpeak;
+
+const ACCENTS = { "en-CA": "Canadian", "en-US": "American", "en-GB": "British", "en-AU": "Australian", "en-IE": "Irish",
+  "en-IN": "Indian", "en-NZ": "New Zealand", "en-ZA": "South African" };
+function bindVoicePicker() {
+  const select = document.getElementById("voice"), hint = document.getElementById("voice-hint");
+  const fill = () => {
+    const list = englishVoices(), saved = savedVoiceName();
+    select.innerHTML = `<option value="">Automatic${list[0] ? ` – ${esc(list[0].name)}` : ""}</option>` + list.map((v) =>
+      `<option value="${esc(v.name)}" ${v.name === saved ? "selected" : ""}>${esc(v.name)} (${ACCENTS[norm(v.lang)] || esc(v.lang)})</option>`).join("");
+    hint.textContent = !list.length ? "Loading voices…" : list.some((v) => norm(v.lang) === "en-CA") ? ""
+      : "No Canadian voice on this device yet, so the closest one is used. On iPhone: Settings → Accessibility → Spoken Content → Voices → English. On Android: Settings → Text-to-speech → install voice data.";
+  };
+  fill();
+  speechSynthesis.onvoiceschanged = fill; // (replaces the previous visit's handler)
+  select.onchange = () => {
+    try { select.value ? localStorage.setItem(VOICE_KEY, select.value) : localStorage.removeItem(VOICE_KEY); } catch { /* private mode */ }
+    speak("Hi! This is how your words will sound.", "en-US");
+  };
+  document.getElementById("voice-test").onclick = () => speak("Hi! This is how your words will sound.", "en-US");
+}
 if (canSpeak) speechSynthesis.getVoices(); // starts loading the voice list early (Chrome)
 
 function wordItem(w) {
   return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
-    <summary><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
+    <summary><input type="checkbox" class="pick" data-pick="${w.id}" aria-label="Select ${esc(w.text)}" tabindex="-1" /><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
       <span class="box-badge">${boxLabel(w.box)}</span></summary>
     <div class="stack card-back">
       ${w.meaning ? `<div class="keep-lines" dir="auto">${esc(w.meaning)}</div>` : ""}
@@ -583,6 +690,13 @@ screens["/settings"] = async () => {
       <div class="row">${paused ? `<button class="secondary" data-pause="0">Resume now</button>` :
         `<button class="ghost" data-pause="3">3 hours</button><button class="ghost" data-pause="24">1 day</button><button class="ghost" data-pause="168">1 week</button>`}</div>
     </div>
+    ${canSpeak ? `<div class="card stack">
+      <h2>Voice</h2>
+      <p class="small muted">The voice that reads English entries and examples on this device. “Automatic” picks a Canadian voice when your phone has one.</p>
+      <div class="row"><select id="voice" class="grow" style="width:auto" aria-label="Voice"></select>
+        <button class="ghost" id="voice-test" type="button">🔊 Test</button></div>
+      <p class="small muted" id="voice-hint"></p>
+    </div>` : ""}
     <div class="card stack"><h2>Ready-made categories</h2><p class="small muted">Add an empty category with one tap, then fill it with your own entries.</p>${starterListHtml(lists)}</div>
     <div class="card stack">
       <h2>Account</h2>
@@ -596,6 +710,7 @@ screens["/settings"] = async () => {
   bindToggleChips($view, "day");
   bindStarterButtons();
   renderPushStatus();
+  if (canSpeak) bindVoicePicker();
 
   document.getElementById("save-settings").onclick = async () => {
     const err = document.getElementById("set-err"); err.hidden = true;
@@ -729,7 +844,25 @@ async function render() {
 }
 
 window.addEventListener("hashchange", render);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  // When a new version of the app finishes installing, it takes over this page; reload once
+  // so the person sees the update right away instead of on the next launch.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    // Never throw away something being typed: then reload when the app is next put away.
+    const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+    if (!typing) location.reload();
+    else document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && location.reload());
+  });
+  navigator.serviceWorker.register("/sw.js").then((reg) => reg.update()).catch(() => {});
+  // A PWA can stay open in the background for days: look for an update whenever it comes back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {});
+  });
+}
 // When a notification is tapped while the app is open, the service worker asks us to navigate.
 navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^\/?/, ""); });
 render();
