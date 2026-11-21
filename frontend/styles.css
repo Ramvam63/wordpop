@@ -108,7 +108,10 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 .word-text { font-weight: 700; white-space: pre-line; overflow-wrap: anywhere; }
 .card-back { margin-top: 8px; }
 .pick { display: none; }
-#list.selecting .pick { display: inline-block; width: 20px; height: 20px; margin: 2px 10px 0 0; flex: none; accent-color: var(--brand); }
+#list.selecting .pick {
+  display: inline-block; width: 20px; height: 20px; margin: 2px 10px 0 0; flex: none; accent-color: var(--brand);
+  pointer-events: none; /* a tap on the box goes to its row, which ticks it (one handler, no double toggle) */
+}
 #list.selecting .word-item summary { justify-content: flex-start; }
 #list.selecting .word-item summary .box-badge { margin-left: auto; }
 .select-bar { margin-bottom: 8px; }
