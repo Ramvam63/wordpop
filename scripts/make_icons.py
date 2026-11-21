@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parents[1] / "frontend" / "icons"
 
-AMBER = (247, 185, 1)  # #F7B901 background
+AMBER = (255, 201, 41)  # #FFC929 background
 BROWN = (110, 62, 0)  # #6E3E00 front card
 DEEP = (196, 128, 0)  # #C48000 back card and text lines
 S = 1024  # draw large, then shrink for smooth edges
