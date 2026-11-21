@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 ### Added
+- **CSV import & export** (Settings → Import & export): export all entries or one category; import a spreadsheet with text, meaning, example and categories – header names like "word" or "translation" are understood, commas/semicolons/tabs and older Excel encodings work, duplicates are skipped, missing categories are created, and problem lines are listed. A sample file can be downloaded
 - "No category" switch on the Categories page: entries without a category can now be switched off too, so turning on a single category sends only that category's entries (before, uncategorized entries were always sent)
 - Only the entry text is required when adding a word, phrase or quote; "Meaning or note" and "Example" are optional (English entries are still filled from the dictionary when possible)
 - Phone keyboards start the "Add a word, phrase or quote" box with a capital letter

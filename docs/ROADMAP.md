@@ -22,7 +22,7 @@ Each item below is also a GitHub issue (run `scripts/create_github_issues.sh` on
 ## v2.2 – Easier sign-in and learning
 - Sign in with Google or a magic-link email
 - Translation of each word into the learner's language
-- Import / export words as CSV
+- ✅ Import / export words as CSV
 - Alembic database migrations
 
 ## v3 – Native app
