@@ -47,14 +47,14 @@ def checkout(data: CheckoutIn, user: User = Depends(get_current_user), db: Sessi
         )
     app_url = get_settings().app_url
     client = billing.client()
-    try:
-        if not user.stripe_customer_id:
-            customer = client.v1.customers.create(
-                {"email": user.email, "metadata": {"user_id": str(user.id)}}
-            )
-            user.stripe_customer_id = customer["id"]
-            db.commit()
-        session = client.v1.checkout.sessions.create({
+
+    def new_customer() -> None:
+        customer = client.v1.customers.create({"email": user.email, "metadata": {"user_id": str(user.id)}})
+        user.stripe_customer_id = customer["id"]
+        db.commit()
+
+    def open_checkout():
+        return client.v1.checkout.sessions.create({
             "mode": "subscription",
             "customer": user.stripe_customer_id,
             "client_reference_id": str(user.id),
@@ -64,6 +64,21 @@ def checkout(data: CheckoutIn, user: User = Depends(get_current_user), db: Sessi
             "success_url": f"{app_url}/#/settings?plus=success",
             "cancel_url": f"{app_url}/#/settings?plus=cancel",
         })
+
+    try:
+        if not user.stripe_customer_id:
+            new_customer()
+        try:
+            session = open_checkout()
+        except stripe.InvalidRequestError as exc:
+            # The saved customer belongs to another Stripe mode or account (e.g. test vs live,
+            # or an earlier key): start again with a new customer.
+            if getattr(exc, "code", None) != "resource_missing" or getattr(exc, "param", None) != "customer":
+                raise
+            log.info("Stripe customer %s not found for user %s; creating a new one",
+                     user.stripe_customer_id, user.id)
+            new_customer()
+            session = open_checkout()
     except stripe.StripeError as exc:
         log.warning("Stripe checkout failed for user %s: %s", user.id, exc)
         raise HTTPException(
