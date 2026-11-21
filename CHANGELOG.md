@@ -6,6 +6,7 @@
 - Only the entry text is required when adding a word, phrase or quote; "Meaning or note" and "Example" are optional (English entries are still filled from the dictionary when possible)
 - Phone keyboards start the "Add a word, phrase or quote" box with a capital letter
 - **Listen** on every entry: dictionary recordings when available, otherwise the phone's own voice in the entry's language (Chinese, Hindi, Japanese, ... from the script; French, Spanish, German, ... from the category name)
+- 🔊 next to every example (in the list and in the quiz) reads the example aloud
 - Pronunciation line for every English entry, phrases and sentences included (offline IPA from the CMU Pronouncing Dictionary), and pinyin with tone marks for Chinese; existing entries get it automatically
 - Opening an entry in the list shows it as an amber flashcard: the entry on the front, a fold line, then the meaning
 

@@ -107,6 +107,7 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 .word-item summary::-webkit-details-marker { display: none; }
 .word-text { font-weight: 700; white-space: pre-line; overflow-wrap: anywhere; }
 .card-back { margin-top: 8px; }
+button.say { padding: 2px 8px; margin-left: 4px; vertical-align: middle; font-style: normal; }
 
 /* An opened entry turns into a flashcard: the entry on the front, a dashed fold line,
    then the meaning - in the amber of the app icon and the quiz card. */
