@@ -144,7 +144,7 @@ screens["/login"] = async () => {
         </form>
         <p class="center small">${mode === "signup" ? "Already have an account?" : "New here?"}
           <a href="#" id="switch">${mode === "signup" ? "Sign in" : "Create an account"}</a></p>
-        <p class="center small muted"><a href="/privacy.html">Privacy</a></p>
+        <p class="center small muted"><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
       </div>`;
     document.getElementById("switch").onclick = (e) => {
       e.preventDefault(); mode = mode === "signup" ? "login" : "signup"; sessionStorageSet("authMode", mode); draw();
@@ -441,7 +441,17 @@ async function loadTts(force = false) {
   if (!state.tts || force) state.tts = await api("/api/tts/voices").catch(() => ({ available: false, selected: "device", voices: [] }));
   return state.tts;
 }
-const naturalVoice = () => (state.tts?.available && state.tts.selected !== "device" ? state.tts.selected : "");
+// Natural voices need WordPop Plus: a subscription, the free trial (which starts with the first
+// listen), or payments not being set up yet.
+const plusAllowed = () => { const b = state.tts?.billing; return !b || b.plus || (b.billing_enabled && !b.trial_started); };
+const naturalVoice = () => (state.tts?.available && state.tts.selected !== "device" && plusAllowed() ? state.tts.selected : "");
+let toldTrialEnded = false;
+function maybeTellTrialEnded() {
+  const b = state.tts?.billing;
+  if (toldTrialEnded || !b?.billing_enabled || b.plus || !b.trial_started || state.tts.selected === "device") return;
+  toldTrialEnded = true;
+  toast("Your free trial of the natural voices has ended – see Settings → Voice");
+}
 let playing = null;
 function playNatural(text, voiceId) {
   if (canSpeak) speechSynthesis.cancel();
@@ -452,7 +462,13 @@ function playNatural(text, voiceId) {
 // Read any text aloud: natural voice for English when available, otherwise the phone's voice.
 function sayText(text, lang) {
   const english = (lang || "en").startsWith("en"), voiceId = naturalVoice();
-  if (english && voiceId) return playNatural(text, voiceId).catch(() => canSpeak && speak(text, lang));
+  if (english && voiceId) {
+    const firstListen = !state.tts.billing?.trial_started;
+    return playNatural(text, voiceId)
+      .then(() => firstListen && loadTts(true)) // the free trial may have just started
+      .catch(() => { loadTts(true); if (canSpeak) speak(text, lang); });
+  }
+  if (english) maybeTellTrialEnded();
   if (canSpeak) speak(text, lang);
 }
 
@@ -522,7 +538,60 @@ function bindImportExport() {
   };
 }
 
-const SAMPLE = "Hi! This is how your words will sound.";
+const SAMPLE = "Hi! This is how your words will sound."; // free for everyone (same text on the server)
+
+function plusPanel(b) {
+  if (!b?.billing_enabled) return "";
+  const date = (iso) => new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  const buy = `<div class="row plus-buy">
+      <button class="small" type="button" data-plan="monthly">${esc(b.prices.monthly)} / month</button>
+      <button class="small" type="button" data-plan="yearly">${esc(b.prices.yearly)} / year <span class="save">save 16%</span></button></div>
+    <p class="small muted">Renews automatically, cancel any time. <a href="/terms.html">Terms</a></p>`;
+  if (b.reason === "admin") return `<div class="plus-box"><p>⭐ <b>WordPop Plus</b> – included for admins.</p></div>`;
+  if (b.reason === "subscription") {
+    return `<div class="plus-box"><p>⭐ <b>WordPop Plus</b> · ${b.plan === "yearly" ? "yearly" : "monthly"}<br>
+      <span class="small muted">${b.cancel_at_period_end ? "Ends" : "Renews"} ${b.renews_at ? date(b.renews_at) : ""}</span></p>
+      ${b.can_manage ? `<div class="row"><button class="ghost small" type="button" id="plus-manage">Manage subscription</button></div>` : ""}</div>`;
+  }
+  if (b.reason === "trial") {
+    const days = Math.max(1, Math.ceil((new Date(b.trial_ends_at) - Date.now()) / 86400000));
+    return `<div class="plus-box"><p>🎁 <b>Free trial</b> – ${days} day${days === 1 ? "" : "s"} left.
+      <span class="small muted">Keep the natural voices with WordPop Plus:</span></p>${buy}</div>`;
+  }
+  if (!b.trial_started) {
+    return `<div class="plus-box"><p>🎁 <b>Try the natural voices free for ${b.trial_days} days.</b>
+      <span class="small muted">The trial starts the first time you tap Listen. After that, WordPop Plus is
+      ${esc(b.prices.monthly)} a month or ${esc(b.prices.yearly)} a year. Tap ▶ to hear each voice.</span></p></div>`;
+  }
+  return `<div class="plus-box"><p>Your free trial has ended. <b>Get WordPop Plus</b> to keep the natural voices –
+    until then, your phone's voice reads your entries.</p>${buy}
+    ${b.can_manage ? `<button class="ghost small" type="button" id="plus-manage">Manage subscription</button>` : ""}</div>`;
+}
+
+function bindPlus() {
+  $view.querySelectorAll("[data-plan]").forEach((btn) => (btn.onclick = async () => {
+    btn.disabled = true;
+    try { location.href = (await api("/api/billing/checkout", { method: "POST", body: { plan: btn.dataset.plan } })).url; }
+    catch (e) { toast(e.message); btn.disabled = false; }
+  }));
+  const manage = document.getElementById("plus-manage");
+  if (manage) manage.onclick = async () => {
+    manage.disabled = true;
+    try { location.href = (await api("/api/billing/portal", { method: "POST" })).url; }
+    catch (e) { toast(e.message); manage.disabled = false; }
+  };
+}
+
+// Back from the Stripe payment page: the webhook may take a few seconds to arrive.
+async function welcomeToPlus() {
+  toast("Thank you! Activating WordPop Plus…");
+  for (let i = 0; i < 6; i++) {
+    const t = await loadTts(true);
+    if (t.billing?.reason === "subscription") { toast("🎉 WordPop Plus is active"); return screens["/settings"]({ params: new URLSearchParams() }); }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  toast("Payment received – Plus will show up in a minute");
+}
 function bindNaturalVoices() {
   $view.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = (e) => {
     e.preventDefault(); playNatural(SAMPLE, b.dataset.sample).catch(() => toast("Couldn't play the voice right now"));
@@ -747,7 +816,7 @@ screens["/progress"] = async () => {
       ${p.hardest.map((h) => `<tr><td>${esc(h.text)}</td><td>forgot ${h.times_wrong}×</td></tr>`).join("")}</table></div>` : ""}`;
 };
 
-screens["/settings"] = async () => {
+screens["/settings"] = async ({ params } = {}) => {
   const [s, lists, tts] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists"), loadTts(true), loadCategories()]);
   const zones = (Intl.supportedValuesOf?.("timeZone") ?? [s.timezone]);
   if (!zones.includes(s.timezone)) zones.unshift(s.timezone);
@@ -789,6 +858,7 @@ screens["/settings"] = async () => {
     ${tts.available || canSpeak ? `<div class="card stack">
       <h2>Voice</h2>
       <p class="small muted">The voice that reads your English entries and examples.</p>
+      ${tts.available ? plusPanel(tts.billing) : ""}
       ${tts.available ? `<div class="voice-list" role="radiogroup" aria-label="Voice">
         ${tts.voices.map((v) => `<label class="voice-option">
           <input type="radio" name="voice" value="${v.id}" ${tts.selected === v.id ? "checked" : ""} />
@@ -844,7 +914,7 @@ screens["/settings"] = async () => {
       ${state.user.is_admin ? `<a class="btn secondary block" href="#/admin">📊 App statistics (admin)</a>` : ""}
       <button class="ghost block" id="logout">Sign out</button>
       <button class="danger block" id="delete-account">Delete my account and all data</button>
-      <p class="center small"><a href="/privacy.html">Privacy</a></p>
+      <p class="center small"><a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
     </div>`;
 
   bindToggleChips($view, "day");
@@ -856,7 +926,8 @@ screens["/settings"] = async () => {
     try { await navigator.clipboard.writeText(`${location.origin}/?text=`); toast("Copied ✓"); }
     catch { toast("Press and hold the address to copy it"); }
   };
-  if (tts.available) bindNaturalVoices();
+  if (tts.available) { bindNaturalVoices(); bindPlus(); }
+  if (params?.get("plus") === "success") { history.replaceState(null, "", "#/settings"); welcomeToPlus(); }
 
   document.getElementById("save-settings").onclick = async () => {
     const err = document.getElementById("set-err"); err.hidden = true;

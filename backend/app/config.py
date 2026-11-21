@@ -51,6 +51,14 @@ class Settings:
         self.azure_speech_key: str = os.getenv("AZURE_SPEECH_KEY", "").strip()
         self.azure_speech_region: str = os.getenv("AZURE_SPEECH_REGION", "").strip().lower()
         self.tts_daily_limit: int = int(os.getenv("TTS_DAILY_LIMIT") or 300)  # new clips per user/day
+        # WordPop Plus (natural voices) through Stripe. Without these the voices are free for all.
+        self.stripe_secret_key: str = os.getenv("STRIPE_SECRET_KEY", "").strip()
+        self.stripe_webhook_secret: str = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+        self.stripe_price_monthly: str = os.getenv("STRIPE_PRICE_MONTHLY", "").strip()
+        self.stripe_price_yearly: str = os.getenv("STRIPE_PRICE_YEARLY", "").strip()
+        self.plus_price_monthly_label: str = os.getenv("PLUS_PRICE_MONTHLY_LABEL", "CA$0.99")
+        self.plus_price_yearly_label: str = os.getenv("PLUS_PRICE_YEARLY_LABEL", "CA$9.99")
+        self.plus_trial_days: int = int(os.getenv("PLUS_TRIAL_DAYS") or 7)
         self.dictionary_api: str = os.getenv(
             "DICTIONARY_API", "https://api.dictionaryapi.dev/api/v2/entries/en/"
         )

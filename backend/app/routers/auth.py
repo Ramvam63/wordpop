@@ -8,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .. import billing
 from ..config import get_settings
 from ..db import get_db
 from ..mailer import password_reset_email, send_email
@@ -81,6 +82,7 @@ def delete_account(
     response: Response, user: User = Depends(get_current_user), db: Session = Depends(get_db)
 ):
     """Delete the account and all its data (words, categories, subscriptions)."""
+    billing.cancel_everything(user)  # no more charges for a deleted account
     db.delete(user)
     db.commit()
     response.delete_cookie(COOKIE_NAME)

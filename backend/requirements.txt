@@ -9,3 +9,4 @@ httpx>=0.27
 pywebpush>=2.0
 eng_to_ipa>=0.0.2
 pypinyin>=0.51
+stripe>=11

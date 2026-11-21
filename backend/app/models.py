@@ -56,6 +56,14 @@ class User(Base):
     # Natural voice for English ("ca-female", "us-male", ...; "device" = the phone's own voice).
     # NULL = the default voice.
     voice: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+    # WordPop Plus (natural voices). Kept in sync with Stripe by the billing webhook.
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    plus_status: Mapped[str | None] = mapped_column(String(20), nullable=True)  # Stripe status
+    plus_plan: Mapped[str | None] = mapped_column(String(10), nullable=True)  # monthly / yearly
+    plus_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    plus_cancel_at_period_end: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    voice_trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Reminders for entries that have no category. NULL (accounts made before this
     # setting existed) counts as on.
     notify_uncategorized: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)

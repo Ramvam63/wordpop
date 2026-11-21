@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
-from .. import tts
+from .. import billing, tts
 from ..db import get_db
 from ..models import User
 from ..security import get_current_user
@@ -19,6 +19,8 @@ def chosen_voice(user: User) -> str:
 def list_voices(user: User = Depends(get_current_user)):
     return {
         "available": tts.enabled(),
+        "billing": billing.status(user),
+        "sample_text": tts.SAMPLE_TEXT,
         "selected": chosen_voice(user),
         "default": tts.DEFAULT_VOICE,
         "voices": [
@@ -39,8 +41,14 @@ def speak(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown voice")
     if not tts.enabled():
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Natural voices are not set up")
+    text = text.strip()
+    if text != tts.SAMPLE_TEXT and billing.plus_reason(user) is None:
+        if billing.start_trial_if_new(user):  # first listen: the free trial begins
+            db.commit()
+        else:
+            raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, "Natural voices are part of WordPop Plus")
     try:
-        audio = tts.get_clip(db, voice, text.strip(), user_id=user.id)
+        audio = tts.get_clip(db, voice, text, user_id=user.id)
     except tts.TtsError as exc:
         status_code = 429 if "limit" in str(exc) else status.HTTP_502_BAD_GATEWAY
         raise HTTPException(status_code, "Couldn't make the recording right now") from exc
