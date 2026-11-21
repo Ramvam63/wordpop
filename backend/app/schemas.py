@@ -124,6 +124,7 @@ class SettingsIn(BaseModel):
     daily_limit: int | None = Field(default=None, ge=1, le=50)
     quiz_notifications: bool | None = None
     notify_uncategorized: bool | None = None
+    voice: str | None = Field(default=None, pattern=r"^(ca-female|ca-male|us-female|us-male|device)$")
 
     @field_validator("timezone")
     @classmethod

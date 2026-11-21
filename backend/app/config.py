@@ -47,6 +47,10 @@ class Settings:
         self.reset_token_minutes: int = int(os.getenv("RESET_TOKEN_MINUTES") or 60)
         # Secret key for the /api/tasks/send-notifications URL that an uptime monitor calls.
         self.cron_secret: str = os.getenv("CRON_SECRET", "")
+        # Natural voices (Azure AI Speech, free tier). Without a key the app uses the phone's voices.
+        self.azure_speech_key: str = os.getenv("AZURE_SPEECH_KEY", "").strip()
+        self.azure_speech_region: str = os.getenv("AZURE_SPEECH_REGION", "").strip().lower()
+        self.tts_daily_limit: int = int(os.getenv("TTS_DAILY_LIMIT") or 300)  # new clips per user/day
         self.dictionary_api: str = os.getenv(
             "DICTIONARY_API", "https://api.dictionaryapi.dev/api/v2/entries/en/"
         )

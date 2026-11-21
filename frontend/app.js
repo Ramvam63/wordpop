@@ -41,7 +41,7 @@ async function api(path, { method = "GET", body } = {}) {
   if (res.status === 204) return null;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && !path.startsWith("/api/auth/")) { state.user = null; location.hash = "#/login"; }
+    if (res.status === 401 && !path.startsWith("/api/auth/")) { state.user = null; state.tts = null; location.hash = "#/login"; }
     let msg = data.detail;
     if (Array.isArray(msg)) msg = msg.map((d) => d.msg.replace(/^Value error, /, "")).join(", ");
     const err = new Error(msg || `Something went wrong (${res.status})`);
@@ -261,7 +261,7 @@ function bindStarterButtons() {
 }
 
 screens["/words"] = async ({ params }) => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadTts()]);
   const filter = params.get("category");
   const words = await api(`/api/words${filter ? `?category_id=${encodeURIComponent(filter)}` : ""}`);
   $view.innerHTML = `
@@ -425,22 +425,61 @@ function speak(text, lang) {
   u.rate = 0.92;
   synth.speak(u);
 }
+// ---------- natural voices (made on the server) ----------
+// Four natural English voices - Canadian and American, a woman and a man. When they are set
+// up on the server and chosen in Settings, English is read by them on every device; the
+// phone's own voice is the fallback (and is still used for other languages).
+async function loadTts(force = false) {
+  if (!state.tts || force) state.tts = await api("/api/tts/voices").catch(() => ({ available: false, selected: "device", voices: [] }));
+  return state.tts;
+}
+const naturalVoice = () => (state.tts?.available && state.tts.selected !== "device" ? state.tts.selected : "");
+let playing = null;
+function playNatural(text, voiceId) {
+  if (canSpeak) speechSynthesis.cancel();
+  playing?.pause();
+  playing = new Audio(`/api/tts?voice=${encodeURIComponent(voiceId)}&text=${encodeURIComponent(text.trim().slice(0, 600))}`);
+  return playing.play();
+}
+// Read any text aloud: natural voice for English when available, otherwise the phone's voice.
+function sayText(text, lang) {
+  const english = (lang || "en").startsWith("en"), voiceId = naturalVoice();
+  if (english && voiceId) return playNatural(text, voiceId).catch(() => canSpeak && speak(text, lang));
+  if (canSpeak) speak(text, lang);
+}
+
 function exampleHtml(w, attr) {
   if (!w.example) return "";
-  const btn = canSpeak ? ` <button class="ghost small say" ${attr} aria-label="Listen to the example">🔊</button>` : "";
+  const btn = canSpeak || naturalVoice() ? ` <button class="ghost small say" ${attr} aria-label="Listen to the example">🔊</button>` : "";
   return `<i dir="auto">“${esc(w.example)}”</i>${btn}`;
 }
 function listen(w) {
   const english = (w.lang || "en").startsWith("en");
+  if (english && naturalVoice()) return sayText(w.text, w.lang);
   if (w.audio_url && !(canSpeak && english && preferVoiceForEnglish())) {
     return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
   }
   if (canSpeak) speak(w.text, w.lang);
 }
-const canListen = (w) => Boolean(w.audio_url) || canSpeak;
+const canListen = (w) => Boolean(w.audio_url) || canSpeak || Boolean(naturalVoice());
 
 const ACCENTS = { "en-CA": "Canadian", "en-US": "American", "en-GB": "British", "en-AU": "Australian", "en-IE": "Irish",
   "en-IN": "Indian", "en-NZ": "New Zealand", "en-ZA": "South African" };
+const SAMPLE = "Hi! This is how your words will sound.";
+function bindNaturalVoices() {
+  $view.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = (e) => {
+    e.preventDefault(); playNatural(SAMPLE, b.dataset.sample).catch(() => toast("Couldn't play the voice right now"));
+  }));
+  $view.querySelectorAll('input[name="voice"]').forEach((r) => (r.onchange = async () => {
+    await api("/api/me/settings", { method: "PUT", body: { voice: r.value } });
+    state.tts.selected = r.value;
+    const device = document.getElementById("device-voice"); if (device) device.hidden = r.value !== "device";
+    if (r.value === "device") { if (canSpeak) speak(SAMPLE, "en-US"); }
+    else playNatural(SAMPLE, r.value).catch(() => {});
+    toast("Voice saved ✓");
+  }));
+}
+
 function bindVoicePicker() {
   const select = document.getElementById("voice"), hint = document.getElementById("voice-hint");
   const fill = () => {
@@ -479,7 +518,7 @@ function wordItem(w) {
 function bindWordItems(words, params) {
   $view.querySelectorAll("[data-listen]").forEach((b) => (b.onclick = () => listen(words.find((x) => x.id === Number(b.dataset.listen)))));
   $view.querySelectorAll("[data-say-example]").forEach((b) => (b.onclick = () => {
-    const w = words.find((x) => x.id === Number(b.dataset.sayExample)); speak(w.example, w.lang);
+    const w = words.find((x) => x.id === Number(b.dataset.sayExample)); sayText(w.example, w.lang);
   }));
   $view.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     if (!confirmInline(b)) return;
@@ -567,7 +606,7 @@ screens["/categories"] = async () => {
 };
 
 screens["/quiz"] = async ({ params }) => {
-  await loadCategories();
+  await Promise.all([loadCategories(), loadTts()]);
   let category = params.get("category") || "";
   let wordId = params.get("word");
   let lastId = null, done = 0;
@@ -605,7 +644,7 @@ screens["/quiz"] = async ({ params }) => {
     document.getElementById("qcat").onchange = (e) => { category = e.target.value; lastId = null; next(); };
     if (!w) return;
     document.getElementById("listen")?.addEventListener("click", () => listen(w));
-    document.getElementById("say-example")?.addEventListener("click", () => speak(w.example, w.lang));
+    document.getElementById("say-example")?.addEventListener("click", () => sayText(w.example, w.lang));
     document.getElementById("reveal").onclick = (e) => { e.target.hidden = true; document.getElementById("answer").hidden = false; };
     const answer = async (knew) => {
       await api("/api/quiz/answer", { method: "POST", body: { word_id: w.id, knew } });
@@ -652,7 +691,7 @@ screens["/progress"] = async () => {
 };
 
 screens["/settings"] = async () => {
-  const [s, lists] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists")]);
+  const [s, lists, tts] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists"), loadTts(true)]);
   const zones = (Intl.supportedValuesOf?.("timeZone") ?? [s.timezone]);
   if (!zones.includes(s.timezone)) zones.unshift(s.timezone);
   const hours = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => i + from);
@@ -690,12 +729,22 @@ screens["/settings"] = async () => {
       <div class="row">${paused ? `<button class="secondary" data-pause="0">Resume now</button>` :
         `<button class="ghost" data-pause="3">3 hours</button><button class="ghost" data-pause="24">1 day</button><button class="ghost" data-pause="168">1 week</button>`}</div>
     </div>
-    ${canSpeak ? `<div class="card stack">
+    ${tts.available || canSpeak ? `<div class="card stack">
       <h2>Voice</h2>
-      <p class="small muted">The voice that reads English entries and examples on this device. “Automatic” picks a Canadian voice when your phone has one.</p>
-      <div class="row"><select id="voice" class="grow" style="width:auto" aria-label="Voice"></select>
-        <button class="ghost" id="voice-test" type="button">🔊 Test</button></div>
-      <p class="small muted" id="voice-hint"></p>
+      <p class="small muted">The voice that reads your English entries and examples.</p>
+      ${tts.available ? `<div class="voice-list" role="radiogroup" aria-label="Voice">
+        ${tts.voices.map((v) => `<label class="voice-option">
+          <input type="radio" name="voice" value="${v.id}" ${tts.selected === v.id ? "checked" : ""} />
+          <span class="grow"><b>${esc(v.label)}</b> <span class="muted small">· ${esc(v.accent)} ${esc(v.gender)}${v.id === tts.default ? " · default" : ""}</span></span>
+          <button class="ghost small" type="button" data-sample="${v.id}" aria-label="Play ${esc(v.label)}">▶</button></label>`).join("")}
+        ${canSpeak ? `<label class="voice-option"><input type="radio" name="voice" value="device" ${tts.selected === "device" ? "checked" : ""} />
+          <span class="grow"><b>This phone's voice</b> <span class="muted small">· works offline</span></span></label>` : ""}
+      </div>` : ""}
+      ${canSpeak ? `<div id="device-voice" class="stack" ${tts.available && tts.selected !== "device" ? "hidden" : ""}>
+        <div class="row"><select id="voice" class="grow" style="width:auto" aria-label="Phone voice"></select>
+          <button class="ghost" id="voice-test" type="button">🔊 Test</button></div>
+        <p class="small muted" id="voice-hint"></p>
+      </div>` : ""}
     </div>` : ""}
     <div class="card stack"><h2>Ready-made categories</h2><p class="small muted">Add an empty category with one tap, then fill it with your own entries.</p>${starterListHtml(lists)}</div>
     <div class="card stack">
@@ -711,6 +760,7 @@ screens["/settings"] = async () => {
   bindStarterButtons();
   renderPushStatus();
   if (canSpeak) bindVoicePicker();
+  if (tts.available) bindNaturalVoices();
 
   document.getElementById("save-settings").onclick = async () => {
     const err = document.getElementById("set-err"); err.hidden = true;
@@ -728,11 +778,11 @@ screens["/settings"] = async () => {
     await api("/api/me/pause", { method: "POST", body: { hours: Number(b.dataset.pause) } });
     toast(b.dataset.pause === "0" ? "Reminders resumed" : "Reminders paused"); screens["/settings"]();
   }));
-  document.getElementById("logout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.user = null; location.hash = "#/login"; };
+  document.getElementById("logout").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); state.user = null; state.tts = null; location.hash = "#/login"; };
   document.getElementById("delete-account").onclick = async (e) => {
     const b = e.currentTarget;
     if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Tap again to permanently delete everything"; return; }
-    await api("/api/auth/me", { method: "DELETE" }); state.user = null; toast("Account deleted"); location.hash = "#/login";
+    await api("/api/auth/me", { method: "DELETE" }); state.user = null; state.tts = null; toast("Account deleted"); location.hash = "#/login";
   };
 };
 
