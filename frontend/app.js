@@ -729,7 +729,25 @@ async function render() {
 }
 
 window.addEventListener("hashchange", render);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+if ("serviceWorker" in navigator) {
+  // When a new version of the app finishes installing, it takes over this page; reload once
+  // so the person sees the update right away instead of on the next launch.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    // Never throw away something being typed: then reload when the app is next put away.
+    const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
+    if (!typing) location.reload();
+    else document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && location.reload());
+  });
+  navigator.serviceWorker.register("/sw.js").then((reg) => reg.update()).catch(() => {});
+  // A PWA can stay open in the background for days: look for an update whenever it comes back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {});
+  });
+}
 // When a notification is tapped while the app is open, the service worker asks us to navigate.
 navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^\/?/, ""); });
 render();

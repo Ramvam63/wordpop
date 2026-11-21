@@ -163,6 +163,9 @@ def test_frontend_is_served(client):
     r = client.get("/")
     assert r.status_code == 200 and "WordPop" in r.text
     assert client.get("/sw.js").status_code == 200
+    # browsers must check for a new version instead of using an old cached copy
+    assert client.get("/app.js").headers["cache-control"] == "no-cache"
+    assert client.get("/sw.js").headers["cache-control"] == "no-cache"
 
 
 def test_starter_lists_add_empty_categories_only(user_client):
