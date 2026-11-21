@@ -185,7 +185,9 @@ def test_every_entry_gets_language_and_pronunciation(user_client):
         "text": "Everyone in this room is a major contributor", "meaning": "m", "example": "e",
         "category_ids": [cat["id"]],
     }).json()
-    assert r["lang"] == "en-US" and r["phonetic"].startswith("/ˈɛvriˌwən")
+    assert r["lang"] == "en-US" and r["phonetic"] == ""  # a sentence: no pronunciation line
+    word = user_client.post("/api/words", json={"text": "Cross-functional", "meaning": "m"}).json()
+    assert word["phonetic"].startswith("/") and "fəŋkʃənəl" in word["phonetic"]  # a single word: yes
 
     zh = user_client.post("/api/words", json={"text": "谢谢", "meaning": "thank you"}).json()
     assert zh["lang"] == "zh-CN" and zh["phonetic"] == "xiè xiè"

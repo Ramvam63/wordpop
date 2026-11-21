@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
-from .pronunciation import language_of, local_phonetic
+from .pronunciation import is_single_word, language_of, local_phonetic
 
 
 def utcnow() -> datetime:
@@ -128,8 +128,12 @@ class Word(Base):
         """Best guess of the entry's language (BCP-47), for text-to-speech."""
         return language_of(self.text, (c.name for c in self.categories))
 
-    def fill_local_phonetic(self) -> bool:
-        """Give the entry an offline pronunciation line if it has none. True if one was added."""
+    def sync_phonetic(self) -> bool:
+        """Single words get a pronunciation line (worked out offline if the dictionary gave
+        none); phrases and sentences get none. Returns True if the line changed."""
+        if not is_single_word(self.text, self.lang):
+            changed, self.phonetic = bool(self.phonetic), ""
+            return changed
         if self.phonetic:
             return False
         self.phonetic = local_phonetic(self.text, self.lang)
