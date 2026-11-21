@@ -174,3 +174,23 @@ def test_starter_lists_add_empty_categories_only(user_client):
     assert user_client.get("/api/words").json() == []
     cats = user_client.get("/api/categories").json()
     assert len(cats) == len(lists) and all(c["word_count"] == 0 for c in cats)
+
+
+def test_every_entry_gets_language_and_pronunciation(user_client):
+    cat = user_client.post("/api/categories", json={"name": "CCP"}).json()
+    r = user_client.post("/api/words", json={
+        "text": "Everyone in this room is a major contributor", "meaning": "m", "example": "e",
+        "category_ids": [cat["id"]],
+    }).json()
+    assert r["lang"] == "en-US" and r["phonetic"].startswith("/ˈɛvriˌwən")
+
+    zh = user_client.post("/api/words", json={"text": "谢谢", "meaning": "thank you"}).json()
+    assert zh["lang"] == "zh-CN" and zh["phonetic"] == "xiè xiè"
+
+    fr = user_client.post("/api/categories", json={"name": "French Basics"}).json()
+    b = user_client.post("/api/words", json={"text": "Bonjour", "category_ids": [fr["id"]]}).json()
+    assert b["lang"] == "fr-FR"
+
+    # editing the text replaces the old pronunciation
+    edited = user_client.patch(f"/api/words/{zh['id']}", json={"text": "你好"}).json()
+    assert edited["phonetic"] == "nǐ hǎo" and edited["audio_url"] == ""

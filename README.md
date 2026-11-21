@@ -84,6 +84,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Reminders on your phone** – each notification shows only your entry, so you try to recall the meaning; tap it to check
 - **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
 - **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
+- **Listen and pronunciation for every entry** – the phone's own voice reads any entry in its language; English entries get an IPA line and Chinese gets pinyin, worked out offline
 - **Categories** – an entry can belong to several; switch reminders on or off per category, plus a **No category** switch for entries you haven't filed
 - **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
 - **Your own schedule** – how often, active hours, active days, daily limit, pause for 3 hours / a day / a week, and your own time zone

@@ -84,6 +84,7 @@ class WordOut(BaseModel):
     example: str
     phonetic: str
     audio_url: str
+    lang: str = "en-US"  # for the Listen button (browser text-to-speech)
     box: int
     due_at: datetime
     times_correct: int

@@ -5,6 +5,9 @@
 - "No category" switch on the Categories page: entries without a category can now be switched off too, so turning on a single category sends only that category's entries (before, uncategorized entries were always sent)
 - Only the entry text is required when adding a word, phrase or quote; "Meaning or note" and "Example" are optional (English entries are still filled from the dictionary when possible)
 - Phone keyboards start the "Add a word, phrase or quote" box with a capital letter
+- **Listen** on every entry: dictionary recordings when available, otherwise the phone's own voice in the entry's language (Chinese, Hindi, Japanese, ... from the script; French, Spanish, German, ... from the category name)
+- Pronunciation line for every English entry, phrases and sentences included (offline IPA from the CMU Pronouncing Dictionary), and pinyin with tone marks for Chinese; existing entries get it automatically
+- Opening an entry in the list shows it as an amber flashcard: the entry on the front, a fold line, then the meaning
 
 ### Changed
 - Starter lists are now empty, ready-made categories: adding one creates the category only, with no pre-filled entries, so everyone starts with their own words. Entries already imported by existing accounts are not touched

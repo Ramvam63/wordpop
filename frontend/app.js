@@ -326,16 +326,38 @@ screens["/words"] = async ({ params }) => {
 
 function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
 
+// ---------- listening ----------
+// A recorded pronunciation (English dictionary words) when there is one; otherwise the
+// phone's own text-to-speech voice for the entry's language - so every entry can be heard.
+const canSpeak = "speechSynthesis" in window;
+function speak(text, lang) {
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang || "en-US";
+  const base = u.lang.split("-")[0];
+  const voice = synth.getVoices().find((v) => v.lang === u.lang) || synth.getVoices().find((v) => v.lang.startsWith(base));
+  if (voice) u.voice = voice;
+  u.rate = 0.9;
+  synth.speak(u);
+}
+function listen(w) {
+  if (w.audio_url) return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  if (canSpeak) speak(w.text, w.lang);
+}
+const canListen = (w) => Boolean(w.audio_url) || canSpeak;
+if (canSpeak) speechSynthesis.getVoices(); // starts loading the voice list early (Chrome)
+
 function wordItem(w) {
   return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
-    <summary><span><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small">${esc(w.phonetic)}</span></span>
+    <summary><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
       <span class="box-badge">${boxLabel(w.box)}</span></summary>
-    <div class="stack" style="margin-top:8px">
+    <div class="stack card-back">
       ${w.meaning ? `<div class="keep-lines" dir="auto">${esc(w.meaning)}</div>` : ""}
       ${w.example ? `<div class="muted"><i>“${esc(w.example)}”</i></div>` : ""}
       ${w.categories.length ? `<div class="chips">${w.categories.map((c) => `<span class="chip"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>`).join("")}</div>` : ""}
-      <div class="row">
-        ${w.audio_url ? `<button class="ghost small" data-audio="${esc(w.audio_url)}">🔊 Listen</button>` : ""}
+      <div class="row card-actions">
+        ${canListen(w) ? `<button class="ghost small" data-listen="${w.id}">🔊 Listen</button>` : ""}
         <button class="ghost small" data-edit="${w.id}">Edit</button>
         <button class="danger small" data-del="${w.id}">Delete</button>
       </div>
@@ -343,7 +365,7 @@ function wordItem(w) {
 }
 
 function bindWordItems(words, params) {
-  $view.querySelectorAll("[data-audio]").forEach((b) => (b.onclick = () => new Audio(b.dataset.audio).play()));
+  $view.querySelectorAll("[data-listen]").forEach((b) => (b.onclick = () => listen(words.find((x) => x.id === Number(b.dataset.listen)))));
   $view.querySelectorAll("[data-del]").forEach((b) => (b.onclick = async () => {
     if (!confirmInline(b)) return;
     await api(`/api/words/${b.dataset.del}`, { method: "DELETE" }); toast("Deleted"); screens["/words"]({ params });
@@ -453,7 +475,7 @@ screens["/quiz"] = async ({ params }) => {
       <div class="card quiz-card">
         <p class="muted small">${done ? `${done} reviewed this session · ` : ""}${boxLabel(w.box)}</p>
         <p class="quiz-word${w.text.length > 40 ? " long" : ""}" dir="auto">${esc(w.text)}</p>
-        <p class="muted">${esc(w.phonetic)} ${w.audio_url ? `<button class="ghost small" id="listen">🔊</button>` : ""}</p>
+        <p class="muted">${esc(w.phonetic)} ${canListen(w) ? `<button class="ghost small" id="listen" aria-label="Listen">🔊</button>` : ""}</p>
         <div id="answer" hidden>
           ${w.meaning ? `<p class="quiz-meaning" dir="auto">${esc(w.meaning)}</p>` : `<p class="muted small">No meaning or note added – did you remember it? You can add one with “Edit” on the Words page.</p>`}
           ${w.example ? `<p class="muted"><i>“${esc(w.example)}”</i></p>` : ""}
@@ -467,7 +489,7 @@ screens["/quiz"] = async ({ params }) => {
       <p class="center small muted">Think of the meaning first, then check. Words you forget come back sooner.</p>`}`;
     document.getElementById("qcat").onchange = (e) => { category = e.target.value; lastId = null; next(); };
     if (!w) return;
-    document.getElementById("listen")?.addEventListener("click", () => new Audio(w.audio_url).play());
+    document.getElementById("listen")?.addEventListener("click", () => listen(w));
     document.getElementById("reveal").onclick = (e) => { e.target.hidden = true; document.getElementById("answer").hidden = false; };
     const answer = async (knew) => {
       await api("/api/quiz/answer", { method: "POST", body: { word_id: w.id, knew } });
