@@ -91,7 +91,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Your own schedule** – how often, active hours, active days, daily limit, pause for 3 hours / a day / a week, and your own time zone
 - **Spaced-repetition quiz** – words you forget come back sooner; words you know are spaced out
 - **Progress page** – streak, mastered words, accuracy, 7-day activity and hardest words
-- **11 ready-made categories** added with one tap – English (Vocabulary, Phrasal Verbs, Idioms, Casual), Motivation, Math Formulas, Poems, and French, Spanish, Chinese and Hindi basics. They start empty: everyone builds their list from their own words
+- **10 ready-made categories** added with one tap – English (Vocabulary, Phrasal Verbs, Idioms, Casual), Motivation, Math Formulas, Poems, and French, Chinese and Hindi basics. They start empty: everyone builds their list from their own words
 - **Installable app (PWA)** – Home Screen icon, opens instantly from cache, step-by-step iPhone install guide
 - **Accounts & security** – bcrypt-hashed passwords, HTTP-only session cookies, **forgot-password emails** with one-time links (stored hashed, rate-limited), reset signs out other devices
 - **Privacy** – delete your account and all data in one tap
