@@ -51,6 +51,9 @@ class User(Base):
     active_days: Mapped[str] = mapped_column(String(7), default="0123456")  # Mon=0 .. Sun=6
     daily_limit: Mapped[int] = mapped_column(Integer, default=10)
     quiz_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Reminders for entries that have no category. NULL (accounts made before this
+    # setting existed) counts as on.
+    notify_uncategorized: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     paused_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Scheduler bookkeeping

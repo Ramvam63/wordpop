@@ -5,6 +5,7 @@ from pywebpush import WebPushException
 from app.models import Category, PushSubscription, User, Word
 from app.notifications import build_payload, is_due
 from app.scheduler import run_once
+from app.services import pick_next_word
 from app.srs import INTERVALS, apply_answer
 
 # Wednesday 2026-11-11 15:00 UTC == 10:00 in Toronto
@@ -152,3 +153,35 @@ def test_due_words_come_before_words_not_yet_due(session_factory):
         db.commit()
         run_once(db, now=WED_10AM_TORONTO, sender=lambda s, p: sent.append(p["title"]))
     assert sent == ["◆ due"]
+
+
+def _send_all(db, user, rounds=5):
+    """Pick reminders repeatedly (as the scheduler would) and return the texts sent."""
+    texts = []
+    for i in range(rounds):
+        word = pick_next_word(db, user, only_notifiable=True, now=WED_10AM_TORONTO)
+        if word is None:
+            break
+        texts.append(word.text)
+        word.last_notified_at = WED_10AM_TORONTO + timedelta(minutes=i)
+    return texts
+
+
+def test_uncategorized_entries_follow_the_no_category_switch(session_factory):
+    with session_factory() as db:
+        user = _seed(db)
+        db.add(Word(user_id=user.id, text="loose", meaning="l",
+                    due_at=WED_10AM_TORONTO - timedelta(days=30)))
+        db.commit()
+
+        user.notify_uncategorized = None  # accounts made before the switch existed: on
+        assert set(_send_all(db, user)) == {"ielts", "loose"}
+
+        user.notify_uncategorized = False
+        assert set(_send_all(db, user)) == {"ielts"}  # only the switched-on category
+
+
+def test_no_category_switch_is_saved_in_settings(user_client):
+    assert user_client.get("/api/me/settings").json()["notify_uncategorized"] is True
+    r = user_client.put("/api/me/settings", json={"notify_uncategorized": False})
+    assert r.status_code == 200 and r.json()["notify_uncategorized"] is False

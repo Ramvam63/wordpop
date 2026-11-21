@@ -55,11 +55,8 @@ def create_word(data: WordIn, user: User = Depends(get_current_user), db: Sessio
             meaning = meaning or found["meaning"]
             example = example or found["example"]
             phonetic, audio = found["phonetic"], found["audio_url"]
-    if not meaning:
-        raise HTTPException(
-            422,
-            "Couldn't find a meaning automatically - please type one",
-        )
+    # Meaning and example are optional: if the look-up finds nothing, the entry is
+    # saved with just its text (e.g. a quote, a poem line, or any non-English text).
 
     word = Word(
         user_id=user.id,

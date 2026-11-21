@@ -35,8 +35,9 @@ def test_add_word_with_autofill_and_categories(user_client):
 
     # duplicate (case-insensitive)
     assert user_client.post("/api/words", json={"text": "Serendipity"}).status_code == 409
-    # unknown word with no meaning -> ask the user to type one
-    assert user_client.post("/api/words", json={"text": "qwzx"}).status_code == 422
+    # only the text is required: nothing found in the dictionary -> saved without a meaning
+    r = user_client.post("/api/words", json={"text": "qwzx"})
+    assert r.status_code == 201 and r.json()["meaning"] == "" and r.json()["example"] == ""
     # filter by category
     assert len(user_client.get(f"/api/words?category_id={cat['id']}").json()) == 1
     cats = user_client.get("/api/categories").json()
@@ -112,11 +113,11 @@ def test_starter_list_import_is_idempotent(user_client):
         "French Basics", "Spanish Basics", "Chinese Basics", "Hindi Basics",
     ]
     first = user_client.post("/api/starter-lists/vocabulary/import").json()
-    assert first["added"] == first["total"] > 0
+    assert first["created"] is True
     again = user_client.post("/api/starter-lists/vocabulary/import").json()
-    assert again["added"] == 0
+    assert again["created"] is False and again["category_id"] == first["category_id"]
     cats = user_client.get("/api/categories").json()
-    assert cats[0]["name"] == "Vocabulary" and cats[0]["word_count"] == first["total"]
+    assert [c["name"] for c in cats] == ["Vocabulary"]
 
 
 def test_renamed_starter_list_reuses_the_old_category(user_client):
@@ -124,7 +125,7 @@ def test_renamed_starter_list_reuses_the_old_category(user_client):
     old = user_client.post("/api/categories", json={"name": "IELTS Essentials"}).json()
     user_client.post("/api/words", json={"text": "mitigate", "meaning": "reduce", "category_ids": [old["id"]]})
     r = user_client.post("/api/starter-lists/vocabulary/import").json()
-    assert r["category_id"] == old["id"] and r["added"] == r["total"] - 1
+    assert r["category_id"] == old["id"] and r["created"] is False
     cats = user_client.get("/api/categories").json()
     assert [c["name"] for c in cats] == ["Vocabulary"]
 
@@ -133,7 +134,7 @@ def test_starter_list_keeps_a_name_the_user_chose(user_client):
     r = user_client.post("/api/starter-lists/idioms/import").json()
     user_client.patch(f"/api/categories/{r['category_id']}", json={"name": "My idioms"})
     again = user_client.post("/api/starter-lists/idioms/import").json()
-    assert again["category_id"] == r["category_id"] and again["added"] == 0
+    assert again["category_id"] == r["category_id"] and again["created"] is False
     assert [c["name"] for c in user_client.get("/api/categories").json()] == ["My idioms"]
 
 
@@ -164,10 +165,12 @@ def test_frontend_is_served(client):
     assert client.get("/sw.js").status_code == 200
 
 
-def test_every_starter_list_imports_cleanly(user_client):
-    """All lists (incl. Chinese, Hindi, poems with line breaks, formulas) fit the 500-char limit."""
-    for item in user_client.get("/api/starter-lists").json():
+def test_starter_lists_add_empty_categories_only(user_client):
+    """Everyone starts from scratch: a starter list adds its category, never any entries."""
+    lists = user_client.get("/api/starter-lists").json()
+    for item in lists:
         r = user_client.post(f"/api/starter-lists/{item['key']}/import")
-        assert r.status_code == 200 and r.json()["added"] == item["count"], item["key"]
-    words = user_client.get("/api/words").json()
-    assert any(w["text"] == "你好" for w in words) and any(w["text"] == "नमस्ते" for w in words)
+        assert r.status_code == 200 and r.json()["created"] is True, item["key"]
+    assert user_client.get("/api/words").json() == []
+    cats = user_client.get("/api/categories").json()
+    assert len(cats) == len(lists) and all(c["word_count"] == 0 for c in cats)

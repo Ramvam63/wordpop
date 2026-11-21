@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+### Added
+- "No category" switch on the Categories page: entries without a category can now be switched off too, so turning on a single category sends only that category's entries (before, uncategorized entries were always sent)
+- Only the entry text is required when adding a word, phrase or quote; "Meaning or note" and "Example" are optional (English entries are still filled from the dictionary when possible)
+
+### Changed
+- Starter lists are now empty, ready-made categories: adding one creates the category only, with no pre-filled entries, so everyone starts with their own words. Entries already imported by existing accounts are not touched
+
 ## [2.1.0] – 2026-11-14
 ### Added
 - Any language and any short text: entries up to 500 characters (sentences, quotes, poems, formulas) with line breaks and right-to-left support; existing PostgreSQL databases are widened automatically

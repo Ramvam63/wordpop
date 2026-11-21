@@ -9,10 +9,17 @@ from .models import Category, User, Word
 from .srs import as_utc
 
 
-def notifiable(word: Word) -> bool:
-    """A word is sent as a notification if it has no categories,
-    or if at least one of its categories has notifications switched on."""
-    return not word.categories or any(c.notify for c in word.categories)
+def uncategorized_on(user: User) -> bool:
+    return user.notify_uncategorized is not False  # NULL (older accounts) counts as on
+
+
+def notifiable(word: Word, user: User) -> bool:
+    """A word is sent as a notification if at least one of its categories has
+    notifications switched on, or - for a word with no category - if the user's
+    "No category" switch is on."""
+    if not word.categories:
+        return uncategorized_on(user)
+    return any(c.notify for c in word.categories)
 
 
 def pick_next_word(
@@ -46,7 +53,7 @@ def pick_next_word(
         stmt = stmt.where(Word.categories.any(Category.id == category_id))
     words = list(db.scalars(stmt))
     if only_notifiable:
-        words = [w for w in words if notifiable(w)]
+        words = [w for w in words if notifiable(w, user)]
     if exclude_id is not None and len(words) > 1:
         words = [w for w in words if w.id != exclude_id]
     if not words:
