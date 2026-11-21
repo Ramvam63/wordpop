@@ -84,6 +84,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Reminders on your phone** – each notification shows only your entry, so you try to recall the meaning; tap it to check
 - **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
 - **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
+- **Natural voices** – Clara and Liam (Canadian), Ava and Andrew (American) read entries and examples on every device (Azure AI Speech, each recording made once and stored)
 - **Listen and pronunciation for every entry** – the phone's own voice reads any entry in its language; English entries get an IPA line and Chinese gets pinyin, worked out offline
 - **Categories** – an entry can belong to several; switch reminders on or off per category, plus a **No category** switch for entries you haven't filed
 - **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
@@ -188,6 +189,8 @@ ruff check .
 3. **Reminders** – create an HTTP(s) monitor on [UptimeRobot](https://uptimerobot.com) for
    `https://YOUR-APP.onrender.com/api/tasks/send-notifications?key=YOUR_CRON_SECRET` with a 5-minute interval.
 4. **Email** (optional) – add a Gmail App Password as `SMTP_PASSWORD` to enable "Forgot password?" emails.
+5. **Natural voices** (optional) – create a free (F0) **Speech service** in the [Azure portal](https://portal.azure.com)
+   and add its key and region as `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION`. Without them the app uses the phone's voices.
 
 > The *Send notifications* GitHub Actions workflow is an optional backup scheduler; it is disabled when
 > UptimeRobot is used, so reminders are never sent twice.
@@ -203,6 +206,7 @@ Interactive documentation: **[wordpopapp.onrender.com/docs](https://wordpopapp.o
 | Categories | `GET/POST /api/categories` · `PATCH/DELETE /api/categories/{id}` |
 | Quiz | `GET /api/quiz/next` · `POST /api/quiz/answer` |
 | Settings & progress | `GET/PUT /api/me/settings` · `POST /api/me/pause` · `GET /api/me/progress` |
+| Voices | `GET /api/tts/voices` · `GET /api/tts?text=…&voice=ca-female` (MP3, cached) |
 | Push | `GET /api/push/public-key` · `POST /api/push/subscribe` · `unsubscribe` · `test` |
 | Starter lists | `GET /api/starter-lists` · `POST /api/starter-lists/{key}/import` |
 | Tasks | `GET /api/tasks/send-notifications?key=…` (called by UptimeRobot) |

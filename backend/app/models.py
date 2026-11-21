@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Table,
     Text,
@@ -52,6 +53,9 @@ class User(Base):
     active_days: Mapped[str] = mapped_column(String(7), default="0123456")  # Mon=0 .. Sun=6
     daily_limit: Mapped[int] = mapped_column(Integer, default=10)
     quiz_notifications: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Natural voice for English ("ca-female", "us-male", ...; "device" = the phone's own voice).
+    # NULL = the default voice.
+    voice: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # Reminders for entries that have no category. NULL (accounts made before this
     # setting existed) counts as on.
     notify_uncategorized: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
@@ -169,3 +173,16 @@ class PasswordResetToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TtsClip(Base):
+    """A generated recording, kept so each text is synthesised only once per voice
+    (saves the free speech quota and makes repeat listens instant)."""
+
+    __tablename__ = "tts_clips"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)  # sha256 of voice + text
+    voice: Mapped[str] = mapped_column(String(20))
+    audio: Mapped[bytes] = mapped_column(LargeBinary)
+    created_by: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

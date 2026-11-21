@@ -115,6 +115,10 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 #list.selecting .word-item summary { justify-content: flex-start; }
 #list.selecting .word-item summary .box-badge { margin-left: auto; }
 .select-bar { margin-bottom: 8px; }
+.voice-list { display: grid; gap: 6px; }
+.voice-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+.voice-option:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+.voice-option input { accent-color: var(--brand); width: 18px; height: 18px; margin: 0; flex: none; }
 button.say { padding: 2px 8px; margin-left: 4px; vertical-align: middle; font-style: normal; }
 
 /* An opened entry turns into a flashcard: the entry on the front, a dashed fold line,
