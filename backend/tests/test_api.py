@@ -110,7 +110,7 @@ def test_starter_list_import_is_idempotent(user_client):
     lists = user_client.get("/api/starter-lists").json()
     assert [l["name"] for l in lists] == [
         "Vocabulary", "Phrasal Verbs", "Idioms", "Casual", "Motivation", "Math Formulas", "Poems",
-        "French Basics", "Spanish Basics", "Chinese Basics", "Hindi Basics",
+        "French Basics", "Chinese Basics", "Hindi Basics",
     ]
     first = user_client.post("/api/starter-lists/vocabulary/import").json()
     assert first["created"] is True

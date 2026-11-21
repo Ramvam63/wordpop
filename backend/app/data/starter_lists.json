@@ -45,11 +45,6 @@
     "color": "#2563EB",
     "description": "French words and phrases."
   },
-  "spanish": {
-    "name": "Spanish Basics",
-    "color": "#CA8A04",
-    "description": "Spanish words and phrases."
-  },
   "chinese": {
     "name": "Chinese Basics",
     "color": "#DC2626",

@@ -17,6 +17,7 @@
 - App updates now show on the first open after a deploy: the new version installs fresh files (not copies from the browser cache), the app reloads itself once the update is ready (never while you are typing), and it checks for updates whenever it is brought back to the screen
 
 ### Changed
+- "Spanish Basics" is no longer offered as a ready-made category (10 remain); accounts that already added it keep their category and entries
 - Starter lists are now empty, ready-made categories: adding one creates the category only, with no pre-filled entries, so everyone starts with their own words. Entries already imported by existing accounts are not touched
 
 ## [2.1.0] – 2026-11-14
