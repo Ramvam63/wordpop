@@ -11,6 +11,7 @@
 - Opening an entry in the list shows it as an amber flashcard: the entry on the front, a fold line, then the meaning
 
 - Canadian English voice: English entries and examples are read by a Canadian voice when the device has one (natural-sounding voices first, then American); a new **Voice** setting lets each device pick any English voice, and dictionary recordings prefer the North American one
+- **Select and delete several entries at once** on the Words page: Select → tick entries (or "Select all", which follows the current search and category) → Delete
 ### Fixed
 - App updates now show on the first open after a deploy: the new version installs fresh files (not copies from the browser cache), the app reloads itself once the update is ready (never while you are typing), and it checks for updates whenever it is brought back to the screen
 

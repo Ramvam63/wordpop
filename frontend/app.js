@@ -280,7 +280,13 @@ screens["/words"] = async ({ params }) => {
     </div>
     <div id="notif-ask"></div>
     <div class="card">
-      <div class="row between"><h2>Your words <span class="muted small">(${words.length})</span></h2></div>
+      <div class="row between"><h2>Your words <span class="muted small">(${words.length})</span></h2>
+        ${words.length ? `<button class="ghost small" id="select-mode" type="button">Select</button>` : ""}</div>
+      <div class="row select-bar" id="select-bar" hidden>
+        <button class="ghost small" id="select-all" type="button">Select all</button>
+        <button class="danger small" id="delete-selected" type="button" disabled>Delete</button>
+        <button class="ghost small" id="select-cancel" type="button">Cancel</button>
+      </div>
       <div class="chips scroll-x" style="margin-bottom:8px">
         <a class="chip" aria-pressed="${!filter}" href="#/words">All</a>
         ${state.categories.map((c) => `<a class="chip" aria-pressed="${String(c.id) === filter}" href="#/words?category=${c.id}">
@@ -321,8 +327,58 @@ screens["/words"] = async ({ params }) => {
     $view.querySelectorAll(".word-item").forEach((el) => (el.hidden = !el.dataset.text.includes(q)));
   };
   bindWordItems(words, params);
+  if (words.length) bindSelection(params);
   if (words.length) maybeAskForNotifications();
 };
+
+// Select several entries (or all of them) and delete them in one go.
+function bindSelection(params) {
+  const list = document.getElementById("list"), bar = document.getElementById("select-bar");
+  const modeBtn = document.getElementById("select-mode"), delBtn = document.getElementById("delete-selected");
+  const visible = () => [...list.querySelectorAll(".word-item:not([hidden]) .pick")];
+  const picked = () => [...list.querySelectorAll(".pick:checked")];
+  const update = () => {
+    const n = picked().length;
+    delBtn.disabled = n === 0; delete delBtn.dataset.armed;
+    delBtn.textContent = n ? `Delete ${n}` : "Delete";
+    const all = visible();
+    document.getElementById("select-all").textContent = all.length && all.every((c) => c.checked) ? "Select none" : "Select all";
+  };
+  const setMode = (on) => {
+    list.classList.toggle("selecting", on); bar.hidden = !on; modeBtn.hidden = on;
+    if (on) list.querySelectorAll("details[open]").forEach((d) => (d.open = false));
+    else list.querySelectorAll(".pick").forEach((c) => (c.checked = false));
+    update();
+  };
+  modeBtn.onclick = () => setMode(true);
+  document.getElementById("select-cancel").onclick = () => setMode(false);
+  document.getElementById("select-all").onclick = () => {
+    const all = visible(), check = !all.every((c) => c.checked);
+    all.forEach((c) => (c.checked = check)); update();
+  };
+  // While selecting, tapping an entry ticks it instead of opening the flashcard.
+  list.querySelectorAll(".word-item summary").forEach((s) => s.addEventListener("click", (e) => {
+    if (!list.classList.contains("selecting")) return;
+    e.preventDefault();
+    const box = s.querySelector(".pick"); if (e.target !== box) box.checked = !box.checked;
+    update();
+  }));
+  delBtn.onclick = async () => {
+    const ids = picked().map((c) => Number(c.dataset.pick));
+    if (!ids.length) return;
+    if (!delBtn.dataset.armed) {
+      delBtn.dataset.armed = "1"; delBtn.textContent = `Tap again to delete ${ids.length}`;
+      setTimeout(() => { if (delBtn.dataset.armed) update(); }, 3000);
+      return;
+    }
+    delBtn.disabled = true;
+    try {
+      const r = await api("/api/words/delete-many", { method: "POST", body: { ids } });
+      toast(`Deleted ${r.deleted} ${r.deleted === 1 ? "entry" : "entries"}`);
+      screens["/words"]({ params });
+    } catch (ex) { toast(ex.message); update(); }
+  };
+}
 
 function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
 
@@ -406,7 +462,7 @@ if (canSpeak) speechSynthesis.getVoices(); // starts loading the voice list earl
 
 function wordItem(w) {
   return `<details class="word-item" data-id="${w.id}" data-text="${esc(w.text.toLowerCase())}">
-    <summary><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
+    <summary><input type="checkbox" class="pick" data-pick="${w.id}" aria-label="Select ${esc(w.text)}" tabindex="-1" /><span class="word-head"><span class="word-text" dir="auto">${esc(w.text)}</span> <span class="muted small phonetic">${esc(w.phonetic)}</span></span>
       <span class="box-badge">${boxLabel(w.box)}</span></summary>
     <div class="stack card-back">
       ${w.meaning ? `<div class="keep-lines" dir="auto">${esc(w.meaning)}</div>` : ""}

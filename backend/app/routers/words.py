@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import dictionary
 from ..db import get_db
 from ..models import Category, User, Word
-from ..schemas import WordIn, WordOut, WordUpdate
+from ..schemas import WordIds, WordIn, WordOut, WordUpdate
 from ..security import get_current_user
 from ..services import user_categories
 
@@ -102,6 +102,16 @@ def update_word(
     db.commit()
     db.refresh(word)
     return word
+
+
+@router.post("/words/delete-many")
+def delete_many(data: WordIds, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Delete several of the user's entries at once. Ids that aren't theirs are ignored."""
+    words = db.scalars(select(Word).where(Word.user_id == user.id, Word.id.in_(set(data.ids)))).all()
+    for word in words:
+        db.delete(word)
+    db.commit()
+    return {"deleted": len(words)}
 
 
 @router.delete("/words/{word_id}", status_code=status.HTTP_204_NO_CONTENT)

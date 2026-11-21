@@ -197,3 +197,16 @@ def test_every_entry_gets_language_and_pronunciation(user_client):
     # editing the text replaces the old pronunciation
     edited = user_client.patch(f"/api/words/{zh['id']}", json={"text": "你好"}).json()
     assert edited["phonetic"] == "nǐ hǎo" and edited["audio_url"] == ""
+
+
+def test_delete_many_only_touches_own_entries(client):
+    client.post("/api/auth/signup", json={"email": "other@example.com", "password": "password1"})
+    theirs = client.post("/api/words", json={"text": "theirs", "meaning": "m"}).json()["id"]
+    client.cookies.clear()
+    client.post("/api/auth/signup", json={"email": "me@example.com", "password": "password1"})
+    mine = [client.post("/api/words", json={"text": t, "meaning": "m"}).json()["id"] for t in ("one", "two", "three")]
+
+    r = client.post("/api/words/delete-many", json={"ids": [*mine[:2], theirs]})
+    assert r.status_code == 200 and r.json() == {"deleted": 2}
+    assert [w["text"] for w in client.get("/api/words").json()] == ["three"]
+    assert client.post("/api/words/delete-many", json={"ids": []}).status_code == 422

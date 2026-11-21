@@ -199,7 +199,7 @@ Interactive documentation: **[wordpopapp.onrender.com/docs](https://wordpopapp.o
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /api/auth/signup` · `login` · `logout` · `forgot-password` · `reset-password` · `GET/DELETE /api/auth/me` |
-| Words | `GET/POST /api/words` · `PATCH/DELETE /api/words/{id}` · `GET /api/dictionary/{word}` |
+| Words | `GET/POST /api/words` · `PATCH/DELETE /api/words/{id}` · `POST /api/words/delete-many` · `GET /api/dictionary/{word}` |
 | Categories | `GET/POST /api/categories` · `PATCH/DELETE /api/categories/{id}` |
 | Quiz | `GET /api/quiz/next` · `POST /api/quiz/answer` |
 | Settings & progress | `GET/PUT /api/me/settings` · `POST /api/me/pause` · `GET /api/me/progress` |

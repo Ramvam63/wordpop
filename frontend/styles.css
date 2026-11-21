@@ -107,6 +107,11 @@ button.small { min-height: 34px; padding: 6px 10px; font-size: .85rem; }
 .word-item summary::-webkit-details-marker { display: none; }
 .word-text { font-weight: 700; white-space: pre-line; overflow-wrap: anywhere; }
 .card-back { margin-top: 8px; }
+.pick { display: none; }
+#list.selecting .pick { display: inline-block; width: 20px; height: 20px; margin: 2px 10px 0 0; flex: none; accent-color: var(--brand); }
+#list.selecting .word-item summary { justify-content: flex-start; }
+#list.selecting .word-item summary .box-badge { margin-left: auto; }
+.select-bar { margin-bottom: 8px; }
 button.say { padding: 2px 8px; margin-left: 4px; vertical-align: middle; font-style: normal; }
 
 /* An opened entry turns into a flashcard: the entry on the front, a dashed fold line,

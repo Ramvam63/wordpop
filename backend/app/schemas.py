@@ -62,6 +62,10 @@ class WordIn(BaseModel):
     category_ids: list[int] = []
 
 
+class WordIds(BaseModel):
+    ids: list[int] = Field(min_length=1, max_length=2000)
+
+
 class WordUpdate(BaseModel):
     text: str | None = Field(default=None, min_length=1, max_length=500)
     meaning: str | None = None
