@@ -327,18 +327,46 @@ screens["/words"] = async ({ params }) => {
 function boxLabel(box) { return box >= 5 ? "⭐ mastered" : box === 0 ? "new" : `level ${box}/5`; }
 
 // ---------- listening ----------
-// A recorded pronunciation (English dictionary words) when there is one; otherwise the
-// phone's own text-to-speech voice for the entry's language - so every entry can be heard.
+// English is read by a Canadian voice when the device has one (the most natural-sounding
+// first), or by the voice the person picked in Settings. Other languages use the device's
+// voice for that language. Voices differ per device, so the choice is kept on the device.
 const canSpeak = "speechSynthesis" in window;
+const VOICE_KEY = "wordpop.voice";
+const savedVoiceName = () => { try { return localStorage.getItem(VOICE_KEY) || ""; } catch { return ""; } };
+const voices = () => (canSpeak ? speechSynthesis.getVoices() : []);
+const norm = (lang) => (lang || "").replace("_", "-");
+const NATURAL = /natural|neural|enhanced|premium|online|google/i;
+
+// Higher is better: Canadian, then US (closest accent), then other English; natural voices first.
+function englishRank(v) {
+  const lang = norm(v.lang);
+  return (lang === "en-CA" ? 100 : lang === "en-US" ? 50 : 10) + (NATURAL.test(v.name) ? 20 : 0) + (v.default ? 1 : 0);
+}
+function englishVoices() {
+  return voices().filter((v) => norm(v.lang).startsWith("en")).sort((a, b) => englishRank(b) - englishRank(a));
+}
+function pickVoice(lang) {
+  const base = lang.split("-")[0];
+  if (base === "en") {
+    const saved = savedVoiceName() && englishVoices().find((v) => v.name === savedVoiceName());
+    return saved || englishVoices()[0];
+  }
+  const all = voices();
+  return all.find((v) => norm(v.lang) === lang && NATURAL.test(v.name)) || all.find((v) => norm(v.lang) === lang) ||
+    all.find((v) => norm(v.lang).startsWith(base));
+}
+// Speak English ourselves (instead of the dictionary's British/US recording) when a Canadian
+// voice exists or the person chose a voice.
+const preferVoiceForEnglish = () => Boolean(savedVoiceName()) || englishVoices().some((v) => norm(v.lang) === "en-CA");
+
 function speak(text, lang) {
   const synth = window.speechSynthesis;
   synth.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = lang || "en-US";
-  const base = u.lang.split("-")[0];
-  const voice = synth.getVoices().find((v) => v.lang === u.lang) || synth.getVoices().find((v) => v.lang.startsWith(base));
-  if (voice) u.voice = voice;
-  u.rate = 0.9;
+  const voice = pickVoice(u.lang);
+  if (voice) { u.voice = voice; u.lang = voice.lang; }
+  u.rate = 0.92;
   synth.speak(u);
 }
 function exampleHtml(w, attr) {
@@ -347,10 +375,33 @@ function exampleHtml(w, attr) {
   return `<i dir="auto">“${esc(w.example)}”</i>${btn}`;
 }
 function listen(w) {
-  if (w.audio_url) return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  const english = (w.lang || "en").startsWith("en");
+  if (w.audio_url && !(canSpeak && english && preferVoiceForEnglish())) {
+    return new Audio(w.audio_url).play().catch(() => canSpeak && speak(w.text, w.lang));
+  }
   if (canSpeak) speak(w.text, w.lang);
 }
 const canListen = (w) => Boolean(w.audio_url) || canSpeak;
+
+const ACCENTS = { "en-CA": "Canadian", "en-US": "American", "en-GB": "British", "en-AU": "Australian", "en-IE": "Irish",
+  "en-IN": "Indian", "en-NZ": "New Zealand", "en-ZA": "South African" };
+function bindVoicePicker() {
+  const select = document.getElementById("voice"), hint = document.getElementById("voice-hint");
+  const fill = () => {
+    const list = englishVoices(), saved = savedVoiceName();
+    select.innerHTML = `<option value="">Automatic${list[0] ? ` – ${esc(list[0].name)}` : ""}</option>` + list.map((v) =>
+      `<option value="${esc(v.name)}" ${v.name === saved ? "selected" : ""}>${esc(v.name)} (${ACCENTS[norm(v.lang)] || esc(v.lang)})</option>`).join("");
+    hint.textContent = !list.length ? "Loading voices…" : list.some((v) => norm(v.lang) === "en-CA") ? ""
+      : "No Canadian voice on this device yet, so the closest one is used. On iPhone: Settings → Accessibility → Spoken Content → Voices → English. On Android: Settings → Text-to-speech → install voice data.";
+  };
+  fill();
+  speechSynthesis.onvoiceschanged = fill; // (replaces the previous visit's handler)
+  select.onchange = () => {
+    try { select.value ? localStorage.setItem(VOICE_KEY, select.value) : localStorage.removeItem(VOICE_KEY); } catch { /* private mode */ }
+    speak("Hi! This is how your words will sound.", "en-US");
+  };
+  document.getElementById("voice-test").onclick = () => speak("Hi! This is how your words will sound.", "en-US");
+}
 if (canSpeak) speechSynthesis.getVoices(); // starts loading the voice list early (Chrome)
 
 function wordItem(w) {
@@ -583,6 +634,13 @@ screens["/settings"] = async () => {
       <div class="row">${paused ? `<button class="secondary" data-pause="0">Resume now</button>` :
         `<button class="ghost" data-pause="3">3 hours</button><button class="ghost" data-pause="24">1 day</button><button class="ghost" data-pause="168">1 week</button>`}</div>
     </div>
+    ${canSpeak ? `<div class="card stack">
+      <h2>Voice</h2>
+      <p class="small muted">The voice that reads English entries and examples on this device. “Automatic” picks a Canadian voice when your phone has one.</p>
+      <div class="row"><select id="voice" class="grow" style="width:auto" aria-label="Voice"></select>
+        <button class="ghost" id="voice-test" type="button">🔊 Test</button></div>
+      <p class="small muted" id="voice-hint"></p>
+    </div>` : ""}
     <div class="card stack"><h2>Ready-made categories</h2><p class="small muted">Add an empty category with one tap, then fill it with your own entries.</p>${starterListHtml(lists)}</div>
     <div class="card stack">
       <h2>Account</h2>
@@ -596,6 +654,7 @@ screens["/settings"] = async () => {
   bindToggleChips($view, "day");
   bindStarterButtons();
   renderPushStatus();
+  if (canSpeak) bindVoicePicker();
 
   document.getElementById("save-settings").onclick = async () => {
     const err = document.getElementById("set-err"); err.hidden = true;

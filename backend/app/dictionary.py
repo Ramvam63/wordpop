@@ -79,8 +79,10 @@ def parse(data: list) -> dict | None:
         for ph in entry.get("phonetics", []):
             if not result["phonetic"] and ph.get("text"):
                 result["phonetic"] = ph["text"]
-            if not result["audio_url"] and ph.get("audio"):
-                result["audio_url"] = ph["audio"]
+            audio = ph.get("audio") or ""
+            # North American recordings are closest to the Canadian accent the app prefers.
+            if audio and (not result["audio_url"] or ("-us." in audio and "-us." not in result["audio_url"])):
+                result["audio_url"] = audio
         for meaning in entry.get("meanings", []):
             for d in meaning.get("definitions", []):
                 if not result["meaning"] and d.get("definition"):
