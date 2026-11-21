@@ -268,7 +268,7 @@ screens["/words"] = async ({ params }) => {
     <div class="card">
       <h2>Add a word, phrase or quote</h2>
       <form id="add" class="stack">
-        <div class="row" style="align-items:flex-start"><textarea id="w-text" class="grow" rows="2" maxlength="500" placeholder="A word, phrase, sentence, quote or short poem – in any language" required autocomplete="off" autocapitalize="none" style="width:auto;min-height:48px"></textarea>
+        <div class="row" style="align-items:flex-start"><textarea id="w-text" class="grow" rows="2" maxlength="500" placeholder="A word, phrase, sentence, quote or short poem – in any language" required autocomplete="off" autocapitalize="sentences" style="width:auto;min-height:48px"></textarea>
           <button type="button" class="secondary" id="lookup" title="English dictionary">Look up</button></div>
         <div><label for="w-meaning">Meaning or note <span class="muted small">(optional – English words can be filled automatically)</span></label>
           <textarea id="w-meaning" rows="2"></textarea></div>
