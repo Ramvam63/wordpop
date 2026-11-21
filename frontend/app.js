@@ -360,7 +360,7 @@ function bindSelection(params) {
   list.querySelectorAll(".word-item summary").forEach((s) => s.addEventListener("click", (e) => {
     if (!list.classList.contains("selecting")) return;
     e.preventDefault();
-    const box = s.querySelector(".pick"); if (e.target !== box) box.checked = !box.checked;
+    const box = s.querySelector(".pick"); box.checked = !box.checked;
     update();
   }));
   delBtn.onclick = async () => {
