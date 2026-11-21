@@ -198,6 +198,7 @@ ruff check .
    monthly and yearly prices, a webhook to `/api/billing/webhook` (events `checkout.session.completed` and
    `customer.subscription.created/updated/deleted`), turn on the Customer Portal, and add `STRIPE_SECRET_KEY`,
    `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY` and `STRIPE_PRICE_YEARLY`. Without them the voices are free.
+   Add `STRIPE_PUBLISHABLE_KEY` too and the payment form opens in a box inside the app (embedded checkout).
 
 > The *Send notifications* GitHub Actions workflow is an optional backup scheduler; it is disabled when
 > UptimeRobot is used, so reminders are never sent twice.

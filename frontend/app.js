@@ -560,17 +560,61 @@ function plusPanel(b) {
   }
   if (!b.trial_started) {
     return `<div class="plus-box"><p>🎁 <b>Try the natural voices free for ${b.trial_days} days.</b>
-      <span class="small muted">The trial starts the first time you tap Listen. After that, WordPop Plus is
-      ${esc(b.prices.monthly)} a month or ${esc(b.prices.yearly)} a year. Tap ▶ to hear each voice.</span></p></div>`;
+      <span class="small muted">The trial starts the first time you tap Listen – no card needed. Tap ▶ to hear each voice.</span></p>
+      <p class="small muted">Already sure? Get WordPop Plus now:</p>${buy}</div>`;
   }
   return `<div class="plus-box"><p>Your free trial has ended. <b>Get WordPop Plus</b> to keep the natural voices –
     until then, your phone's voice reads your entries.</p>${buy}
     ${b.can_manage ? `<button class="ghost small" type="button" id="plus-manage">Manage subscription</button>` : ""}</div>`;
 }
 
+// Stripe.js must be loaded from Stripe itself (that's what keeps card details off our server).
+let stripeJs = null;
+function loadStripeJs() {
+  stripeJs ||= new Promise((resolve, reject) => {
+    const s = Object.assign(document.createElement("script"), { src: "https://js.stripe.com/v3/", async: true });
+    s.onload = () => resolve(window.Stripe);
+    s.onerror = () => { stripeJs = null; reject(new Error("Couldn't load the payment form – check your connection")); };
+    document.head.appendChild(s);
+  });
+  return stripeJs;
+}
+
+// The payment form in a box over the app (Stripe embedded checkout).
+async function openPaymentBox(plan, publishableKey) {
+  const overlay = document.createElement("div");
+  overlay.className = "pay-overlay";
+  overlay.innerHTML = `<div class="pay-box" role="dialog" aria-modal="true" aria-label="Get WordPop Plus">
+    <button class="pay-close ghost small" type="button" aria-label="Close">✕</button>
+    <div id="pay-mount"><p class="center muted pad">Loading the secure payment form…</p></div></div>`;
+  document.body.appendChild(overlay);
+  document.body.classList.add("no-scroll");
+  let checkout = null;
+  const close = () => {
+    checkout?.destroy(); overlay.remove(); document.body.classList.remove("no-scroll");
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+  overlay.querySelector(".pay-close").onclick = close;
+  overlay.onclick = (e) => { if (e.target === overlay) close(); };
+  try {
+    const Stripe = await loadStripeJs();
+    checkout = await Stripe(publishableKey).initEmbeddedCheckout({
+      fetchClientSecret: async () => (await api("/api/billing/checkout", { method: "POST", body: { plan } })).client_secret,
+      onComplete: () => { close(); welcomeToPlus(); },
+    });
+    if (!overlay.isConnected) { checkout.destroy(); return; } // closed while loading
+    overlay.querySelector("#pay-mount").innerHTML = "";
+    checkout.mount("#pay-mount");
+  } catch (e) { close(); toast(e.message); }
+}
+
 function bindPlus() {
   $view.querySelectorAll("[data-plan]").forEach((btn) => (btn.onclick = async () => {
-    btn.disabled = true;
+    const key = state.tts?.billing?.publishable_key;
+    if (key) return openPaymentBox(btn.dataset.plan, key);
+    btn.disabled = true; // no publishable key: Stripe's own payment page
     try { location.href = (await api("/api/billing/checkout", { method: "POST", body: { plan: btn.dataset.plan } })).url; }
     catch (e) { toast(e.message); btn.disabled = false; }
   }));

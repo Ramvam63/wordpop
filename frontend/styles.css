@@ -124,6 +124,17 @@ details.help li + li { margin-top: 4px; }
 .voice-list { display: grid; gap: 6px; }
 .plus-box { background: var(--brand-soft); border-radius: 12px; padding: 10px 12px; display: grid; gap: 8px; }
 .plus-box p { margin: 0; }
+/* Payment form box (Stripe embedded checkout) over the app */
+.pay-overlay {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(17, 24, 39, .55); animation: card-in .18s ease-out;
+}
+.pay-box {
+  position: relative; width: min(520px, 100%); max-height: calc(100vh - 32px); overflow-y: auto;
+  background: #fff; color: #111827; border-radius: 18px; padding: 40px 6px 10px; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+.pay-close { position: absolute; top: 8px; right: 8px; color: #374151; border-color: #E5E7EB; background: #fff; }
+.no-scroll { overflow: hidden; }
 .plus-buy button { flex: 1 1 140px; }
 .plus-buy .save { font-size: .75rem; opacity: .8; margin-left: 4px; }
 .voice-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }

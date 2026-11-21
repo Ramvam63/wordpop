@@ -108,6 +108,7 @@ def status(user: User) -> dict:
         "renews_at": renews.isoformat() if renews else None,
         "cancel_at_period_end": bool(user.plus_cancel_at_period_end) if subscribed else False,
         "can_manage": bool(user.stripe_customer_id) and enabled(),
+        "publishable_key": s.stripe_publishable_key if enabled() else "",
         "prices": {"monthly": s.plus_price_monthly_label, "yearly": s.plus_price_yearly_label},
     }
 

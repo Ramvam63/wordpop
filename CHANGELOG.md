@@ -23,6 +23,8 @@
 - App updates now show on the first open after a deploy: the new version installs fresh files (not copies from the browser cache), the app reloads itself once the update is ready (never while you are typing), and it checks for updates whenever it is brought back to the screen
 
 ### Changed
+- The WordPop Plus payment form opens in a box inside the app (Stripe embedded checkout) instead of a separate full page, and closes with "WordPop Plus is active" when payment is done (needs `STRIPE_PUBLISHABLE_KEY`; without it the full Stripe page is used)
+- WordPop Plus can be bought straight away from Settings → Voice, without starting the free trial first
 - App icon background is now a lighter, warmer amber (#FFC929)
 - "Spanish Basics" is no longer offered as a ready-made category (10 remain); accounts that already added it keep their category and entries
 - Starter lists are now empty, ready-made categories: adding one creates the category only, with no pre-filled entries, so everyone starts with their own words. Entries already imported by existing accounts are not touched

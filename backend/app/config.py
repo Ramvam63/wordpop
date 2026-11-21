@@ -53,6 +53,9 @@ class Settings:
         self.tts_daily_limit: int = int(os.getenv("TTS_DAILY_LIMIT") or 300)  # new clips per user/day
         # WordPop Plus (natural voices) through Stripe. Without these the voices are free for all.
         self.stripe_secret_key: str = os.getenv("STRIPE_SECRET_KEY", "").strip()
+        # Public key: lets the payment form open inside the app (embedded checkout).
+        # Without it, customers are sent to Stripe's own payment page instead.
+        self.stripe_publishable_key: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
         self.stripe_webhook_secret: str = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
         self.stripe_price_monthly: str = os.getenv("STRIPE_PRICE_MONTHLY", "").strip()
         self.stripe_price_yearly: str = os.getenv("STRIPE_PRICE_YEARLY", "").strip()
