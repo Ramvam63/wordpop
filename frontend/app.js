@@ -465,6 +465,55 @@ const canListen = (w) => Boolean(w.audio_url) || canSpeak || Boolean(naturalVoic
 
 const ACCENTS = { "en-CA": "Canadian", "en-US": "American", "en-GB": "British", "en-AU": "Australian", "en-IE": "Irish",
   "en-IN": "Indian", "en-NZ": "New Zealand", "en-ZA": "South African" };
+// ---------- CSV import & export ----------
+const categoryOptions = (first) => `<option value="">${esc(first)}</option>` +
+  state.categories.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+
+// Excel on Windows often saves CSV in its own encoding, not UTF-8: try UTF-8 first.
+async function readTextFile(file) {
+  const bytes = await file.arrayBuffer();
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { return new TextDecoder("windows-1252").decode(bytes); }
+}
+
+function bindImportExport() {
+  const exportCat = document.getElementById("export-cat"), exportBtn = document.getElementById("export-btn");
+  exportCat.onchange = () => { exportBtn.href = `/api/words/export${exportCat.value ? `?category_id=${exportCat.value}` : ""}`; };
+
+  const file = document.getElementById("import-file"), btn = document.getElementById("import-btn");
+  const out = document.getElementById("import-result");
+  file.onchange = () => { btn.disabled = !file.files.length; out.hidden = true; };
+  btn.onclick = async () => {
+    const f = file.files[0]; if (!f) return;
+    if (f.size > 2_000_000) { toast("That file is too big (2 MB max)"); return; }
+    btn.disabled = true; btn.textContent = "Importing…";
+    try {
+      const body = { csv: await readTextFile(f) };
+      const cat = document.getElementById("import-cat").value; if (cat) body.category_id = Number(cat);
+      const r = await api("/api/words/import", { method: "POST", body });
+      const parts = [`✓ ${r.added} ${r.added === 1 ? "entry" : "entries"} added`];
+      if (r.duplicates) parts.push(`${r.duplicates} already in your list (skipped)`);
+      if (r.categories_created.length) parts.push(`new categories: ${r.categories_created.join(", ")}`);
+      if (r.errors.length) parts.push(`${r.errors.length} line${r.errors.length === 1 ? "" : "s"} skipped – ` +
+        r.errors.slice(0, 5).map((e) => `line ${e.line}: ${e.reason}`).join("; ") + (r.errors.length > 5 ? "…" : ""));
+      out.textContent = parts.join(" · "); out.hidden = false;
+      toast(`${r.added} added`); file.value = ""; await loadCategories();
+    } catch (e) { out.textContent = e.message; out.hidden = false; }
+    btn.textContent = "⬆ Import"; btn.disabled = !file.files.length;
+  };
+
+  document.getElementById("csv-template").onclick = (e) => {
+    e.preventDefault();
+    const sample = "\ufefftext,meaning,example,categories\r\n" +
+      "Obviously,\"clearly, without doubt\",She was obviously very upset.,Vocabulary\r\n" +
+      "give up,stop trying,Don't give up now!,Phrasal Verbs\r\n" +
+      "谢谢,thank you,,Chinese Basics\r\n";
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([sample], { type: "text/csv" })), download: "wordpop-sample.csv" });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+}
+
 const SAMPLE = "Hi! This is how your words will sound.";
 function bindNaturalVoices() {
   $view.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = (e) => {
@@ -691,7 +740,7 @@ screens["/progress"] = async () => {
 };
 
 screens["/settings"] = async () => {
-  const [s, lists, tts] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists"), loadTts(true)]);
+  const [s, lists, tts] = await Promise.all([api("/api/me/settings"), api("/api/starter-lists"), loadTts(true), loadCategories()]);
   const zones = (Intl.supportedValuesOf?.("timeZone") ?? [s.timezone]);
   if (!zones.includes(s.timezone)) zones.unshift(s.timezone);
   const hours = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => i + from);
@@ -746,6 +795,25 @@ screens["/settings"] = async () => {
         <p class="small muted" id="voice-hint"></p>
       </div>` : ""}
     </div>` : ""}
+    <div class="card stack">
+      <h2>Import &amp; export</h2>
+      <p class="small muted">Move entries to and from a spreadsheet (Excel, Google Sheets, Numbers) as a CSV file –
+        for a backup, or to add many entries at once.</p>
+      <div class="stack">
+        <label for="export-cat">Export</label>
+        <div class="row"><select id="export-cat" class="grow" style="width:auto">${categoryOptions("All entries")}</select>
+          <a class="btn secondary" id="export-btn" href="/api/words/export" download>⬇ Export CSV</a></div>
+      </div>
+      <div class="stack">
+        <label for="import-file">Import</label>
+        <input id="import-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain" />
+        <div class="row"><select id="import-cat" class="grow" style="width:auto" aria-label="Also add to category">${categoryOptions("No extra category")}</select>
+          <button class="secondary" id="import-btn" type="button" disabled>⬆ Import</button></div>
+        <p class="small muted">Columns: <b>text</b> (required), meaning, example, categories (separate several with “;”).
+          Entries you already have are skipped. <a href="#" id="csv-template">Download a sample file</a></p>
+        <p class="small" id="import-result" hidden></p>
+      </div>
+    </div>
     <div class="card stack"><h2>Ready-made categories</h2><p class="small muted">Add an empty category with one tap, then fill it with your own entries.</p>${starterListHtml(lists)}</div>
     <div class="card stack">
       <h2>Account</h2>
@@ -760,6 +828,7 @@ screens["/settings"] = async () => {
   bindStarterButtons();
   renderPushStatus();
   if (canSpeak) bindVoicePicker();
+  bindImportExport();
   if (tts.available) bindNaturalVoices();
 
   document.getElementById("save-settings").onclick = async () => {

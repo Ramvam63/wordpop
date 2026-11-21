@@ -67,6 +67,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 
 - **Any language and script** – Chinese, Hindi, French, Spanish, Japanese, Arabic… Right-to-left text displays correctly too.
 - **Categories** keep each kind apart (e.g. *French*, *Chinese*, *Poems*, *Math*, *Motivation*), and you choose which ones send reminders.
+- **CSV import & export** – back up your entries or add hundreds at once from Excel, Google Sheets or Numbers (UTF-8 and older Excel files, commas, semicolons or tabs; duplicates skipped)
 - **Automatic meanings** are available for English words and phrases; for everything else you write your own meaning or note.
 
 ## Screenshots
@@ -202,7 +203,7 @@ Interactive documentation: **[wordpopapp.onrender.com/docs](https://wordpopapp.o
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /api/auth/signup` · `login` · `logout` · `forgot-password` · `reset-password` · `GET/DELETE /api/auth/me` |
-| Words | `GET/POST /api/words` · `PATCH/DELETE /api/words/{id}` · `POST /api/words/delete-many` · `GET /api/dictionary/{word}` |
+| Words | `GET/POST /api/words` · `PATCH/DELETE /api/words/{id}` · `POST /api/words/delete-many` · `GET /api/words/export` (CSV) · `POST /api/words/import` · `GET /api/dictionary/{word}` |
 | Categories | `GET/POST /api/categories` · `PATCH/DELETE /api/categories/{id}` |
 | Quiz | `GET /api/quiz/next` · `POST /api/quiz/answer` |
 | Settings & progress | `GET/PUT /api/me/settings` · `POST /api/me/pause` · `GET /api/me/progress` |
@@ -247,7 +248,7 @@ wordpop/
 - [ ] Look-up and translation for more languages
 - [ ] Nicely typeset math formulas (LaTeX)
 - [ ] Database migrations with Alembic
-- [ ] Import / export words as CSV
+- [x] Import / export words as CSV
 - [ ] Native iOS app (Swift) using the same API
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for details.
