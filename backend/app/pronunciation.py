@@ -85,6 +85,19 @@ def _pinyin(text: str) -> str:
     return " ".join(s[0] for part in chinese for s in pinyin(part, style=Style.TONE))
 
 
+_ONE_WORD = re.compile(r"^[^\W\d_]+(?:[-'’][^\W\d_]+)*$")  # letters, optionally joined by - or '
+_HAN_ONLY = re.compile(r"^[\u4e00-\u9fff\u3400-\u4dbf]{1,4}$")
+
+
+def is_single_word(text: str, lang: str) -> bool:
+    """Pronunciation lines are shown for single words only - not phrases or sentences.
+    Chinese has no spaces, so up to 4 characters with no punctuation counts as a word."""
+    text = text.strip()
+    if lang == "zh-CN":
+        return bool(_HAN_ONLY.match(text))
+    return bool(_ONE_WORD.match(text))
+
+
 def local_phonetic(text: str, lang: str) -> str:
     """An IPA line for English, pinyin for Chinese, otherwise ""."""
     try:

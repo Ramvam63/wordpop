@@ -7,7 +7,7 @@
 - Phone keyboards start the "Add a word, phrase or quote" box with a capital letter
 - **Listen** on every entry: dictionary recordings when available, otherwise the phone's own voice in the entry's language (Chinese, Hindi, Japanese, ... from the script; French, Spanish, German, ... from the category name)
 - 🔊 next to every example (in the list and in the quiz) reads the example aloud
-- Pronunciation line for every English entry, phrases and sentences included (offline IPA from the CMU Pronouncing Dictionary), and pinyin with tone marks for Chinese; existing entries get it automatically
+- Pronunciation line for single English words (offline IPA from the CMU Pronouncing Dictionary when the dictionary has none) and pinyin for short Chinese words; phrases and sentences show no line, and older entries are updated automatically
 - Opening an entry in the list shows it as an amber flashcard: the entry on the front, a fold line, then the meaning
 
 - Canadian English voice: English entries and examples are read by a Canadian voice when the device has one (natural-sounding voices first, then American); a new **Voice** setting lets each device pick any English voice, and dictionary recordings prefer the North American one

@@ -37,8 +37,9 @@ def list_words(
     if q:
         stmt = stmt.where(Word.text.ilike(f"%{q.strip()}%"))
     words = list(db.scalars(stmt))
-    # Entries saved before offline pronunciation existed get their line now (fast, no network).
-    if sum(w.fill_local_phonetic() for w in words):
+    # Keep pronunciation lines to single words: older entries are brought in line here
+    # (fast, no network).
+    if sum(w.sync_phonetic() for w in words):
         db.commit()
     return words
 
@@ -71,7 +72,7 @@ def create_word(data: WordIn, user: User = Depends(get_current_user), db: Sessio
         audio_url=audio,
         categories=user_categories(db, user, data.category_ids),
     )
-    word.fill_local_phonetic()  # phrases, sentences, Chinese... when the dictionary had none
+    word.sync_phonetic()  # a line for single words only, even when the dictionary had none
     db.add(word)
     db.commit()
     db.refresh(word)
@@ -98,7 +99,7 @@ def update_word(
         word.example = data.example.strip()
     if data.category_ids is not None:
         word.categories = user_categories(db, user, data.category_ids)
-    word.fill_local_phonetic()
+    word.sync_phonetic()
     db.commit()
     db.refresh(word)
     return word

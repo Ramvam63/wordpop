@@ -85,7 +85,7 @@ WordPop shows it to you on your phone at the times you choose, then quizzes you 
 - **Any language, any text** – words, phrases, sentences, quotes, poems and formulas up to 500 characters, with line breaks and right-to-left support
 - **Auto-filled English entries** – type an English word or phrase, get its meaning, an example, pronunciation and audio
 - **Natural voices** – Clara and Liam (Canadian), Ava and Andrew (American) read entries and examples on every device (Azure AI Speech, each recording made once and stored)
-- **Listen and pronunciation for every entry** – the phone's own voice reads any entry in its language; English entries get an IPA line and Chinese gets pinyin, worked out offline
+- **Listen to every entry, pronunciation for words** – the phone's own voice reads any entry in its language; single English words get an IPA line and Chinese words get pinyin, worked out offline
 - **Categories** – an entry can belong to several; switch reminders on or off per category, plus a **No category** switch for entries you haven't filed
 - **Rotating reminders** – every due entry gets its turn; nothing repeats until the others have been shown
 - **Your own schedule** – how often, active hours, active days, daily limit, pause for 3 hours / a day / a week, and your own time zone
