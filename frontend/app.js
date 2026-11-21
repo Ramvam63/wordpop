@@ -299,6 +299,14 @@ screens["/words"] = async ({ params }) => {
   bindToggleChips($view, "newcat");
   const text = document.getElementById("w-text"), meaning = document.getElementById("w-meaning"), example = document.getElementById("w-example");
 
+  const shared = takeShared();
+  if (shared) {
+    text.value = shared;
+    document.getElementById("add").insertAdjacentHTML("beforebegin",
+      `<p class="share-note small">📥 Shared to WordPop – add a meaning if you like, then tap <b>Save word</b>.</p>`);
+  }
+  if (shared || params.get("add")) { text.focus(); text.scrollIntoView({ block: "center" }); }
+
   document.getElementById("lookup").onclick = async () => {
     if (!text.value.trim()) return text.focus();
     try {
@@ -796,6 +804,21 @@ screens["/settings"] = async () => {
       </div>` : ""}
     </div>` : ""}
     <div class="card stack">
+      <h2>Add from other apps</h2>
+      <p class="small muted">Save a word while you read – in the browser, email, news or e-books – without copying and pasting.</p>
+      <details class="help"><summary><b>Android</b> (and Chrome or Edge on a computer)</summary>
+        <ol class="small"><li>Install WordPop on your Home Screen (if you haven't).</li>
+          <li>In any app, select a word or sentence and tap <b>Share</b>.</li>
+          <li>Pick <b>WordPop</b>. It opens with the text ready – tap <b>Save word</b>.</li></ol></details>
+      <details class="help"><summary><b>iPhone</b> – one-time setup with the Shortcuts app</summary>
+        <ol class="small"><li>Open the <b>Shortcuts</b> app, tap <b>+</b>, and name it “Add to WordPop”.</li>
+          <li>Tap <b>ⓘ</b> (or the name at the top) and turn on <b>Show in Share Sheet</b>; set it to receive <b>Text</b>.</li>
+          <li>Add the action <b>URL Encode</b> (input: <i>Shortcut Input</i>).</li>
+          <li>Add the action <b>Open URLs</b> with this address, then tap the end of it and insert <i>URL Encoded Text</i>:<br>
+            <code class="copy-url">${esc(location.origin)}/?text=</code> <button class="ghost small" type="button" id="copy-share-url">Copy</button></li>
+          <li>Now select text in any app → <b>Share</b> → <b>Add to WordPop</b>. It opens in Safari, where you sign in once.</li></ol></details>
+    </div>
+    <div class="card stack">
       <h2>Import &amp; export</h2>
       <p class="small muted">Move entries to and from a spreadsheet (Excel, Google Sheets, Numbers) as a CSV file –
         for a backup, or to add many entries at once.</p>
@@ -829,6 +852,10 @@ screens["/settings"] = async () => {
   renderPushStatus();
   if (canSpeak) bindVoicePicker();
   bindImportExport();
+  document.getElementById("copy-share-url").onclick = async () => {
+    try { await navigator.clipboard.writeText(`${location.origin}/?text=`); toast("Copied ✓"); }
+    catch { toast("Press and hold the address to copy it"); }
+  };
   if (tts.available) bindNaturalVoices();
 
   document.getElementById("save-settings").onclick = async () => {
@@ -941,6 +968,29 @@ async function maybeAskForNotifications() {
 }
 
 // ---------- router ----------
+// ---------- Share to WordPop ----------
+// Android (and Chrome/Edge on computers) list the installed app in the Share menu; it then opens
+// as /?share_text=...&share_title=...&share_url=... . On iPhone a Shortcut opens /?text=... .
+// The text is kept in sessionStorage so it survives a sign-in, then prefilled in "Add".
+const SHARE_KEY = "wordpop.shared";
+function cleanShared(text, title) {
+  const tidy = (s) => (s || "").replace(/https?:\/\/\S+/g, "").trim()
+    .replace(/^["“”'‘’«]+|["“”'‘’»]+$/g, "").trim();
+  return (tidy(text) || tidy(title)).slice(0, 500);
+}
+function captureShare() {
+  const q = new URLSearchParams(location.search);
+  if (![...q.keys()].some((k) => ["share_text", "share_title", "share_url", "text"].includes(k))) return;
+  const shared = cleanShared(q.get("share_text") ?? q.get("text"), q.get("share_title"));
+  if (shared) sessionStorageSet(SHARE_KEY, shared);
+  history.replaceState(null, "", "/#/words"); // tidy the address; the text is kept for the Words screen
+}
+function takeShared() {
+  const t = sessionStorageGet(SHARE_KEY);
+  if (t) sessionStorageSet(SHARE_KEY, "");
+  return t || "";
+}
+
 async function render() {
   const r = route();
   const publicRoute = ["/login", "/forgot", "/reset"].includes(r.path);
@@ -984,4 +1034,5 @@ if ("serviceWorker" in navigator) {
 }
 // When a notification is tapped while the app is open, the service worker asks us to navigate.
 navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.type === "navigate") location.hash = e.data.url.replace(/^\/?/, ""); });
+captureShare();
 render();

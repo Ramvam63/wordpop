@@ -212,3 +212,10 @@ def test_delete_many_only_touches_own_entries(client):
     assert r.status_code == 200 and r.json() == {"deleted": 2}
     assert [w["text"] for w in client.get("/api/words").json()] == ["three"]
     assert client.post("/api/words/delete-many", json={"ids": []}).status_code == 422
+
+
+def test_manifest_offers_share_to_wordpop(client):
+    m = client.get("/manifest.webmanifest").json()
+    assert m["share_target"]["action"] == "/" and m["share_target"]["method"] == "GET"
+    assert m["share_target"]["params"]["text"] == "share_text"
+    assert client.get("/?share_text=serendipity").status_code == 200  # the app opens for a share
